@@ -1,0 +1,105 @@
+# ============================================================
+# .tarignore — список исключений для архивов, отправляемых на анализ
+# Использование: tar czf out.tar.gz --exclude-from=.tarignore -C <parent> <projectdir>
+# Или через скрипт mktar.sh (см. рядом).
+# ============================================================
+
+# --- СЕКРЕТЫ (главное) ---
+.env
+# ВАЖНО: tar НЕ понимает отрицание (!.env.example), поэтому широкий '.env.*'
+# не используем — он выкинул бы и .env.example. Перечисляем реальные варианты явно:
+.env.local
+.env.dev
+.env.development
+.env.prod
+.env.production
+.env.staging
+.env.test
+*.env
+.env.bak*
+.env.backup*
+*.bak-*
+# .env.example НЕ исключаем — он остаётся в архиве как шаблон конфига.
+*.pem
+*.key
+*.ppk
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.keystore
+*.jks
+secrets.yaml
+secrets.yml
+secrets.json
+*secret*
+*credentials*
+.netrc
+.npmrc
+.pgpass
+.htpasswd
+service-account*.json
+gcp-*.json
+*token*.json
+
+# --- ДАННЫЕ / ПД (телефоны, логи звонков, дампы) ---
+calls.txt
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql
+data/*.txt
+data/*.csv
+
+# --- ЛОГИ И ВРЕМЕННЫЕ ---
+*.log
+logs/
+ngrok.log
+tmp/
+temp/
+*.tmp
+*.swp
+*.bak
+*~
+
+# --- ЗАВИСИМОСТИ И БИЛДЫ (мне не нужны для анализа кода) ---
+.git
+.git/
+node_modules
+node_modules/
+.venv
+venv/
+env/
+__pycache__
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.next/
+.cache/
+
+# --- ВЛОЖЕННЫЕ АРХИВЫ (тот самый avr-cleaned.tar.gz) ---
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+
+# --- РЕДАКТОР / ОС ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# --- МУСОР ОТ СОРВАННЫХ КОМАНД ---
+-d
+-H

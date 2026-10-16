@@ -1,0 +1,78 @@
+services:
+
+  avr-app-backend:
+    image: agentvoiceresponse/avr-app-backend
+    platform: linux/x86_64
+    container_name: avr-app-backend
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - JWT_SECRET=your-jwt-secret-here
+      - CORE_DEFAULT_IMAGE=agentvoiceresponse/avr-core
+      - DB_TYPE=sqlite
+      - DB_DATABASE=/app/data/data.db
+      - FRONTEND_URL=http://localhost:3000
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=$ADMIN_PASSWORD
+      - WEBHOOK_URL=http://avr-app-backend:3001/webhooks
+      - WEBHOOK_SECRET=your-webhook-secret-here
+      - ASTERISK_CONFIG_PATH=/app/asterisk
+      - ARI_URL=$ARI_URL
+      - ARI_USERNAME=$ARI_USERNAME
+      - ARI_PASSWORD=$ARI_PASSWORD
+    volumes:
+      - ./asterisk/conf:/app/asterisk
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - avr
+
+  avr-app-frontend:
+    image: agentvoiceresponse/avr-app-frontend
+    platform: linux/x86_64
+    container_name: avr-app-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_WEBRTC_CLIENT_URL=http://localhost:8080/index.html
+    networks:
+      - avr
+
+  avr-asterisk:
+    image: agentvoiceresponse/avr-asterisk
+    platform: linux/x86_64
+    container_name: avr-asterisk
+    restart: always
+    ports:
+      - 8089:8089
+      - 10000-10050:10000-10050/udp
+    volumes:
+      - ./asterisk/conf/manager.conf:/etc/asterisk/my_manager.conf
+      - ./asterisk/conf/pjsip.conf:/etc/asterisk/my_pjsip.conf
+      - ./asterisk/conf/extensions.conf:/etc/asterisk/my_extensions.conf
+      - ./asterisk/conf/queues.conf:/etc/asterisk/my_queues.conf
+      - ./asterisk/conf/ari.conf:/etc/asterisk/my_ari.conf
+    networks:
+      - avr
+  
+  avr-phone:
+    image: agentvoiceresponse/avr-phone
+    platform: linux/x86_64
+    container_name: avr-phone
+    restart: always
+    ports:
+      - 8080:80
+    networks:
+      - avr
+
+networks:
+  avr:
+    name: avr
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

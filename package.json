@@ -1,0 +1,39 @@
+{
+  "name": "avr-infra",
+  "version": "1.6.1",
+  "author": "Agent Voice Response <info@agentvoiceresponse.com>",
+  "description": "Some examples of docker-compose files for Agent Voice Response",
+  "keywords": [
+    "avr",
+    "agentvoiceresponse",
+    "voicebot",
+    "infra",
+    "deepgram",
+    "ultravox",
+    "openai",
+    "realtime",
+    "vosk",
+    "google",
+    "elevenlabs",
+    "n8n"
+  ],
+  "scripts": {
+    "dc:up": "docker compose up -d",
+    "dc:down": "docker compose down",
+    "dc:pull": "docker compose pull"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentvoiceresponse/avr-infra.git"
+  },
+  "contributors": [
+    {
+      "name": "Giuseppe Careri",
+      "email": "info@gcareri.com",
+      "url": "https://github.com/gcareri"
+    }
+  ],
+  "dependencies": {
+    "axios": "^1.13.2"
+  }
+}

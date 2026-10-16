@@ -1,0 +1,289 @@
+{
+  "_about": "Шаблоны наших тулзов Ultravox. Панель (вкладка Ultravox → Тулзы) строит из них тулзы: адрес = TOOLS_PUBLIC_URL + path, ключ X-AVR-Key = TOOLS_API_KEY, uv_call_id = ID звонка (P-02). {COMPANY_NAME}, {CLIENT_ID_LABEL}, {CLIENT_ID_FORMAT} — из .env. requires: billing | network — тулз подключается к агентам, только если включён BILLING_PROVIDER / NETWORK_SOURCE. Правки конкретной установки панель хранит в instance/ultravox/tools.json поверх этого файла.",
+  "tools": [
+    {
+      "name": "searchFAQ",
+      "requires": null,
+      "path": "/tool/searchFAQ",
+      "timeout": "15s",
+      "description": "Search the {COMPANY_NAME} support FAQ. Call it for any caller question or problem before answering yourself.\nquery: the caller's question in their own words. lang: \"ro\" or \"ru\" (the caller's language).\nResult: if data.found, say data.answer naturally in the caller's language, without adding details.\nIf data.requires_osmp, ask for the {CLIENT_ID_LABEL} code ({CLIENT_ID_FORMAT}), then call findByOSMP.\nIf not found or error, do not guess: offer a callback from a specialist.",
+      "dynamicParameters": [
+        {
+          "name": "query",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "The user's question in natural language",
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "name": "lang",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Language code: 'ro' for Romanian or 'ru' for Russian",
+            "type": "string"
+          },
+          "required": true
+        }
+      ],
+      "precomputable": true
+    },
+    {
+      "name": "findByOSMP",
+      "requires": "billing",
+      "path": "/tool/findByOSMP",
+      "timeout": "15s",
+      "description": "Find the caller in the billing system by {CLIENT_ID_LABEL} code. Call it after the caller gives their {CLIENT_ID_LABEL} code ({CLIENT_ID_FORMAT}).\nReturns client_name, client_type, client_ip, is_active (service active), is_paid (no unpaid invoices).\nIf data.found is false or the code is invalid, ask the caller to repeat the code once; if still not found, offer a callback.\nIf is_active is false or is_paid is false, tell the caller politely (contract inactive / unpaid invoice) before any technical check.\nIf client_ip is empty, do not call getNetworkData; offer a callback from a technician.",
+      "dynamicParameters": [
+        {
+          "name": "osmp_id",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Client {CLIENT_ID_LABEL} code, {CLIENT_ID_FORMAT}",
+            "type": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "getNetworkData",
+      "requires": "network",
+      "path": "/tool/getNetworkData",
+      "timeout": "15s",
+      "description": "Get the client's network data by the client IP returned by findByOSMP.\nReturns mac_address, switch_name, switch_ip, port, pop, can_diagnose.\nCall diagnoseClient only if can_diagnose is true (switch_ip AND mac_address are present). Never use the client IP as switch_ip.\nIf can_diagnose is false, do not run diagnostics: tell the caller a technician will check the line and offer a callback.",
+      "dynamicParameters": [
+        {
+          "name": "client_ip",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Client IP address from findByOSMP result",
+            "type": "string"
+          },
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "diagnoseClient",
+      "requires": "network",
+      "path": "/tool/diagnoseClient",
+      "timeout": "15s",
+      "description": "Check the client's connection on the network switch: port state and whether the client's device (MAC) is visible.\nUse switch_ip, mac_address, switch_name and port exactly as returned by getNetworkData. Never pass the client IP as switch_ip.\nThe check takes a few seconds: tell the caller you are checking the line before calling.\nResult: data.port_status \"down\" -> the line/port is down, a technician must check; data.mac_found false -> the client's router seems off or disconnected, ask the caller to check power and restart it;\nmac_found true and port up -> the connection is OK on our side.\nIf the tool returns an error (including code SWITCH_IP_UNKNOWN), do not retry: offer a callback from a technician.",
+      "dynamicParameters": [
+        {
+          "name": "switch_ip",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "IP address of the network switch (from findByContract result)",
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "name": "switch_name",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Name of the network switch (from findByContract result)",
+            "type": "string"
+          }
+        },
+        {
+          "name": "mac_address",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Client MAC address (from findByContract result)",
+            "type": "string"
+          },
+          "required": true
+        },
+        {
+          "name": "port",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Switch port",
+            "type": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateCall",
+      "requires": null,
+      "path": "/tool/updateCall",
+      "timeout": "5s",
+      "description": "Save information gathered during the conversation to the current call record (sent to Telegram when the call ends).\nUse call_id \"latest\". Send only the fields you learned.\nrequest_summary: one sentence in the caller's own words describing the reason for the call - send it as soon as you understand the problem, never the FAQ answer.\nresolution: what you told or recommended to the caller, or how the case ended.\nSet needs_callback true (with callback_reason) whenever you promise the caller a callback.",
+      "dynamicParameters": [
+        {
+          "name": "call_id",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Call ID or 'latest' for current call",
+            "type": "string"
+          }
+        },
+        {
+          "name": "phone",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Phone number",
+            "type": "string"
+          }
+        },
+        {
+          "name": "osmp_id",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Client {CLIENT_ID_LABEL} code",
+            "type": "string"
+          }
+        },
+        {
+          "name": "client_ip",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Client IP address",
+            "type": "string"
+          }
+        },
+        {
+          "name": "is_active",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether account is active",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "is_paid",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether invoice is paid",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "mac_address",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "MAC address",
+            "type": "string"
+          }
+        },
+        {
+          "name": "switch_name",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Switch name",
+            "type": "string"
+          }
+        },
+        {
+          "name": "switch_ip",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Switch IP",
+            "type": "string"
+          }
+        },
+        {
+          "name": "port",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Port number",
+            "type": "string"
+          }
+        },
+        {
+          "name": "pop",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Point of presence",
+            "type": "string"
+          }
+        },
+        {
+          "name": "port_status",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Port status: 'up' or 'down'",
+            "type": "string"
+          }
+        },
+        {
+          "name": "mac_found",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether MAC was found on switch",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "diagnosis",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Technical diagnosis from diagnoseClient",
+            "type": "string"
+          }
+        },
+        {
+          "name": "has_power",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether client has electricity",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "router_rebooted",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether router was rebooted",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "possible_issue",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "AI's assessment of the possible cause",
+            "type": "string"
+          }
+        },
+        {
+          "name": "needs_callback",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Whether callback is needed",
+            "type": "boolean"
+          }
+        },
+        {
+          "name": "callback_reason",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "Reason for callback",
+            "type": "string"
+          }
+        },
+        {
+          "name": "request_summary",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "One short sentence in the caller's language describing what the caller asked (e.g. \"Nu are internet de azi dimineata\"). Send it as soon as the problem is clear.",
+            "type": "string"
+          }
+        },
+        {
+          "name": "resolution",
+          "location": "PARAMETER_LOCATION_BODY",
+          "schema": {
+            "description": "What you told or recommended to the caller, or how the case ended (e.g. 'Recomandat reboot router').",
+            "type": "string"
+          }
+        }
+      ]
+    }
+  ]
+}

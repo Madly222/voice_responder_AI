@@ -1,0 +1,70 @@
+services:
+  avr-core:
+    image: agentvoiceresponse/avr-core
+    platform: linux/x86_64
+    container_name: avr-core
+    restart: always
+    environment:
+      - PORT=5001 
+      - STS_URL=ws://avr-sts-elevenlabs:6035
+    ports:
+      - 5001:5001
+    networks:
+      - avr
+
+  avr-sts-elevenlabs:
+    image: agentvoiceresponse/avr-sts-elevenlabs
+    platform: linux/x86_64
+    container_name: avr-sts-elevenlabs
+    restart: always
+    environment:
+      - PORT=6035
+      - ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY
+      - ELEVENLABS_AGENT_ID=$ELEVENLABS_AGENT_ID
+    networks:
+      - avr
+
+  avr-asterisk:
+    image: agentvoiceresponse/avr-asterisk
+    platform: linux/x86_64
+    container_name: avr-asterisk
+    restart: always
+    ports:
+      - 5038:5038
+      - 5060:5060
+      - 8088:8088
+      - 8089:8089
+      - 10000-10050:10000-10050/udp
+    volumes:
+      - ./asterisk/conf/manager.conf:/etc/asterisk/my_manager.conf
+      - ./asterisk/conf/pjsip.conf:/etc/asterisk/my_pjsip.conf
+      - ./asterisk/conf/extensions.conf:/etc/asterisk/my_extensions.conf
+      - ./asterisk/conf/queues.conf:/etc/asterisk/my_queues.conf
+      - ./asterisk/conf/ari.conf:/etc/asterisk/my_ari.conf
+    networks:
+      - avr
+
+  avr-ami:
+    image: agentvoiceresponse/avr-ami
+    platform: linux/x86_64
+    container_name: avr-ami
+    restart: always
+    environment:
+      - PORT=6006
+      - AMI_HOST=${AMI_HOST:-avr-asterisk}
+      - AMI_PORT=${AMI_PORT:-5038}
+      - AMI_USERNAME=${AMI_USERNAME:-avr}
+      - AMI_PASSWORD=${AMI_PASSWORD:-avr}
+    ports:
+      - 6006:6006
+    networks:
+      - avr
+
+networks:
+  avr:
+    name: avr
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          

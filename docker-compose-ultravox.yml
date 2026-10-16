@@ -1,0 +1,149 @@
+services:
+  avr-core:
+    image: agentvoiceresponse/avr-core
+    platform: linux/x86_64
+    container_name: avr-core
+    restart: always
+    environment:
+      - PORT=5001
+      - STS_URL=ws://avr-sts-ultravox:6031
+    ports:
+      - 5001:5001
+    networks:
+      - avr
+  avr-sts-ultravox:
+    image: agentvoiceresponse/avr-sts-ultravox
+    platform: linux/x86_64
+    container_name: avr-sts-ultravox
+    restart: always
+    environment:
+      - PORT=6031
+      - ULTRAVOX_AGENT_ID=$ULTRAVOX_AGENT_ID
+      - ULTRAVOX_API_KEY=$ULTRAVOX_API_KEY
+    networks:
+      - avr
+  # Русский агент: та же пара core + sts, другой ULTRAVOX_AGENT_ID. Наружу порт не публикуется —
+  # Asterisk ходит на avr-core-ru:5001 по сети avr (выбор языка в меню, extensions.conf).
+  avr-core-ru:
+    image: agentvoiceresponse/avr-core
+    platform: linux/x86_64
+    container_name: avr-core-ru
+    restart: always
+    environment:
+      - PORT=5001
+      - STS_URL=ws://avr-sts-ultravox-ru:6031
+    networks:
+      - avr
+  avr-sts-ultravox-ru:
+    image: agentvoiceresponse/avr-sts-ultravox
+    platform: linux/x86_64
+    container_name: avr-sts-ultravox-ru
+    restart: always
+    environment:
+      - PORT=6031
+      - ULTRAVOX_AGENT_ID=$ULTRAVOX_AGENT_ID_RU
+      - ULTRAVOX_API_KEY=$ULTRAVOX_API_KEY
+    networks:
+      - avr
+  network-diag:
+    container_name: network-diag
+    restart: always
+    build: ./network-diag
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - NETWORK_USER=${NETWORK_USER}
+      - NETWORK_PASS=${NETWORK_PASS}
+      - NETWORK_ENABLE=${NETWORK_ENABLE}
+      - SWITCH_MGMT_NETS=${SWITCH_MGMT_NETS:-198.51.100.0/24}
+      - SSH_CONNECT_TIMEOUT=${SSH_CONNECT_TIMEOUT:-}
+      - SSH_CMD_TIMEOUT=${SSH_CMD_TIMEOUT:-}
+      - SSH_TOTAL_TIMEOUT=${SSH_TOTAL_TIMEOUT:-}
+      - PYTHONUNBUFFERED=1
+    networks:
+      - avr
+  faq-server:
+    build: ./faq-server
+    container_name: faq-server
+    restart: always
+    environment:
+      - PORT=3000
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - NETWORK_DIAG_URL=http://network-diag:5000
+      - SWITCH_MGMT_NETS=${SWITCH_MGMT_NETS:-198.51.100.0/24}
+      - WHMCS_CUSTOM_API=${WHMCS_CUSTOM_API}
+      - WHMCS_API_KEY=${WHMCS_API_KEY}
+      - NETBOX_API_URL=${NETBOX_API_URL}
+      - NETBOX_API_TOKEN=${NETBOX_API_TOKEN}
+      - NETBOX_WEB_URL=${NETBOX_WEB_URL:-}
+      - WHMCS_ADMIN_URL=${WHMCS_ADMIN_URL:-}
+      - ULTRAVOX_API_KEY=${ULTRAVOX_API_KEY:-}
+      - ULTRAVOX_AGENT_ID=${ULTRAVOX_AGENT_ID:-}
+      - ULTRAVOX_AGENT_ID_RU=${ULTRAVOX_AGENT_ID_RU:-}
+      - ULTRAVOX_API_URL=${ULTRAVOX_API_URL:-}
+      - ULTRAVOX_TIMEOUT_MS=${ULTRAVOX_TIMEOUT_MS:-}
+      - TRANSCRIPT_MAX_UTTERANCES=${TRANSCRIPT_MAX_UTTERANCES:-}
+      - NETBOX_TIMEOUT_MS=${NETBOX_TIMEOUT_MS:-}
+      - BILLING_TIMEOUT_MS=${BILLING_TIMEOUT_MS:-}
+      - TELEGRAM_TIMEOUT_MS=${TELEGRAM_TIMEOUT_MS:-}
+      - DIAG_TIMEOUT_MS=${DIAG_TIMEOUT_MS:-}
+      - BILLING_PROVIDER=${BILLING_PROVIDER:-none}
+      - NETWORK_SOURCE=${NETWORK_SOURCE:-none}
+      - BILLING_CLIENT_URL=${BILLING_CLIENT_URL:-}
+      - NETWORK_IP_URL=${NETWORK_IP_URL:-}
+      - NETWORK_DEVICE_URL=${NETWORK_DEVICE_URL:-}
+      - CLIENT_ID_LABEL=${CLIENT_ID_LABEL:-}
+      - CLIENT_ID_PATTERN=${CLIENT_ID_PATTERN:-}
+      - TIMEZONE=${TIMEZONE:-UTC}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./faq-server/data:/app/data
+    networks:
+      - avr
+  avr-asterisk:
+    image: agentvoiceresponse/avr-asterisk
+    platform: linux/x86_64
+    container_name: avr-asterisk
+    restart: always
+    ports:
+      - "127.0.0.1:5038:5038"
+      - 5060:5060/tcp
+      - 5060:5060/udp
+      - "127.0.0.1:8088:8088"
+      - "127.0.0.1:8089:8089"
+      - 10000-10050:10000-10050/udp
+    volumes:
+      - ./asterisk/conf/manager.conf:/etc/asterisk/my_manager.conf
+      - ./asterisk/conf/pjsip.conf:/etc/asterisk/my_pjsip.conf
+      - ./asterisk/conf/extensions.conf:/etc/asterisk/my_extensions.conf
+      - ./asterisk/conf/queues.conf:/etc/asterisk/my_queues.conf
+      - ./asterisk/conf/ari.conf:/etc/asterisk/my_ari.conf
+      - ./asterisk/conf/musiconhold.conf:/etc/asterisk/musiconhold.conf
+      - ./asterisk/moh:/var/lib/asterisk/moh
+      - ./asterisk/sounds:/var/lib/asterisk/sounds/custom:ro
+    networks:
+      - avr
+  avr-ami:
+    image: agentvoiceresponse/avr-ami
+    platform: linux/x86_64
+    container_name: avr-ami
+    restart: always
+    environment:
+      - PORT=6006
+      - AMI_HOST=${AMI_HOST:-avr-asterisk}
+      - AMI_PORT=${AMI_PORT:-5038}
+      - AMI_USERNAME=${AMI_USERNAME:-avr}
+      - AMI_PASSWORD=${AMI_PASSWORD:-avr}
+    ports:
+      - "127.0.0.1:6006:6006"
+    networks:
+      - avr
+networks:
+  avr:
+    name: avr
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
