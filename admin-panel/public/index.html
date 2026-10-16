@@ -1,0 +1,171 @@
+<!doctype html>
+
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AVR — панель управления</title>
+  <script>
+    // Тема до отрисовки (без мигания): сохранённый выбор, иначе — тема системы.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('panel-theme'); } catch (e) {}
+      if (t !== 'light' && t !== 'dark') t = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/faq.css">
+  <link rel="stylesheet" href="css/dialog.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="icon" type="image/x-icon" href="images/favicon.png">
+</head>
+<body>
+  <header>
+    <h1>AVR · панель управления</h1>
+    <div class="tabs">
+      <button data-tab="health" class="active">Мониторинг</button>
+      <button data-tab="faq">FAQ (вопросы-ответы)</button>
+      <button data-tab="env">Переменные (.env)</button>
+      <button data-tab="ultravox">Ultravox (агенты)</button>
+      <button data-tab="asterisk">Asterisk</button>
+      <button data-tab="guide">Справка</button>
+    </div>
+    <button class="ghost theme-toggle" id="themeToggle" type="button" title="Светлая / тёмная тема"></button>
+  </header>
+  <main>
+    <!-- Вкладка Мониторинг -->
+    <section id="tab-health">
+      <div class="card">
+        <div class="bar">
+          <button class="act" id="checkNow">Проверить сейчас</button>
+          <button class="ghost" id="refresh">Обновить</button>
+          <label style="flex:0 0 auto;color:var(--tx);margin-left:auto">Уведомления плановой проверки: 
+            <select id="notifyMode">
+              <option value="problems">только при проблемах</option>
+              <option value="always">всегда (и когда всё ок)</option>
+            </select>
+          </label>
+          <small class="hint" id="hts"></small>
+        </div>
+        <div id="hlist">Загрузка…</div>
+      </div>
+      <div class="card">
+        <div class="grp">Журнал действий <small class="hint">— последние 50: кто, откуда и что менял в панели (значения настроек и пароли не записываются)</small></div>
+        <div id="auditList">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- Вкладка FAQ -->
+    <section id="tab-faq" hidden>
+      <div class="card">
+        <div class="bar">
+          <a class="act" id="ultravoxLink" href="#" target="_blank" rel="noopener" style="text-decoration:none">↗ Открыть Ultravox (AI-агент)</a>
+          <small class="hint">Системный промпт и голос агента настраиваются в Ultravox</small>
+        </div>
+      </div>
+      <div class="card sticky-card">
+        <div class="bar" style="margin-bottom: 0;">
+          <button class="act" id="saveFaq">Сохранить FAQ</button>
+          <button class="ghost" id="addFaq">+ Добавить запись</button>
+          <small class="hint">Изменения действуют сразу — агент ищет по новому FAQ без перезапуска.</small>
+        </div>
+      </div>
+      <div id="faqlist">Загрузка…</div>
+    </section>
+
+    <!-- Вкладка .env -->
+    <section id="tab-env" hidden>
+      <div class="card" style="border-top:2px solid var(--acc)">
+        <div class="grp">Доступ к панели</div>
+        <div class="row">
+          <label>Логин</label>
+          <input id="paUser" placeholder="admin">
+        </div>
+        <div class="row">
+          <label>Новый пароль</label>
+          <input id="paPass" type="password" placeholder="минимум 8 символов">
+        </div>
+        <div class="bar" style="margin-top:10px">
+          <button class="act" id="paSave">Сменить доступ и перезапустить панель</button>
+          <small class="hint">Панель сама перезапустится. После этого войди с новым логином/паролем. ВАЖНО: старые вкладки браузера кэшируют прежний пароль — закрой окно полностью и открой заново.</small>
+        </div>
+      </div>
+      <div class="card">
+        <div class="bar">
+          <button class="act" id="saveEnv">Сохранить</button>
+          <span class="help">?<span class="bubble"><b>Сохранить</b> — записывает изменения в файл .env. Сервисы пока продолжают работать со старыми значениями — чтобы применить, нажми «Применить».</span></span>
+          <button class="ghost" id="applyEnv">Применить</button>
+          <span class="help">?<span class="bubble"><b>Применить</b> — панель сама находит сервисы, запущенные со старыми значениями .env, и пересоздаёт только их; при смене адреса/ключа тулзов или выключателей синхронизирует тулзы Ultravox. Перед этим показывает план.</span></span>
+          <small class="hint">Описания и значения по умолчанию — из .env.example. Пустое поле = значение по умолчанию. Секреты замаскированы: оставь «••••», чтобы не менять.</small>
+        </div>
+        <div id="envPending" class="hint" style="margin-bottom:12px"></div>
+        <div id="envrows">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- Вкладка Ultravox -->
+    <section id="tab-ultravox" hidden>
+      <div class="card">
+        <div class="bar">
+          <span id="uvlangs" class="uv-langs"></span>
+          <button class="ghost" id="uvReload">Перечитать из Ultravox</button>
+          <button class="ghost" id="uvCheck">Проверить изменения</button>
+          <button class="act" id="uvApply">Применить в Ultravox</button>
+          <small class="hint">Изменения уходят в Ultravox сразу и действуют со следующего звонка. Перед отправкой сохраняется копия агента.</small>
+        </div>
+        <div id="uvbody">Загрузка…</div>
+      </div>
+      <div class="card" id="uvtools">Загрузка тулзов…</div>
+    </section>
+
+    <!-- Вкладка Asterisk -->
+    <section id="tab-asterisk" hidden>
+      <div class="card">
+        <div class="bar">
+          <select id="afile"></select>
+          <button class="act" id="saveA">Сохранить</button>
+          <button class="ghost" id="reloadA">Перечитать в Asterisk</button>
+          <small class="hint" id="ahint"></small>
+        </div>
+        <textarea id="atext" spellcheck="false">Загрузка…</textarea>
+      </div>
+    </section>
+    <!-- Вкладка Справка -->
+    <section id="tab-guide" hidden>
+      <div class="card" id="guideCheck">Загрузка…</div>
+      <div class="guide-wrap">
+        <nav class="card guide-toc" id="guideToc"></nav>
+        <div class="card guide-text" id="guideText">Загрузка…</div>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <!-- Кастомное диалоговое окно -->
+  <div class="dialog-overlay" id="customDialogOverlay">
+    <div class="dialog-modal">
+      <div class="dialog-header">
+        <h3 id="customDialogTitle">Уведомление</h3>
+        <button id="customDialogCloseBtn" class="dialog-close">×</button>
+      </div>
+      <div class="dialog-body">
+        <div id="customDialogMessage"></div>
+        <input type="text" id="customDialogInput" class="hidden">
+      </div>
+      <div class="dialog-footer" id="customDialogFooter"></div>
+    </div>
+  </div>
+
+<script src="scripts/utils.js"></script>
+<script src="scripts/tabs.js"></script>
+<script src="scripts/health.js"></script>
+<script src="scripts/faq.js"></script>
+<script src="scripts/env.js"></script>
+<script src="scripts/ultravox.js"></script>
+<script src="scripts/asterisk.js"></script>
+<script src="scripts/guide.js"></script>
+</body>
+</html>

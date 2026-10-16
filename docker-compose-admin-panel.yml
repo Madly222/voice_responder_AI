@@ -1,0 +1,38 @@
+# Overlay для admin-panel. Подключается вторым файлом:
+#   docker compose -f docker-compose-ultravox.yml -f docker-compose-admin-panel.yml up -d admin-panel
+# Так основной compose не редактируется.
+#
+# Доступ по сети: PANEL_BIND в .env задаёт интерфейс привязки.
+#   PANEL_BIND=127.0.0.1    → только с хоста (по умолчанию, безопасно)
+#   PANEL_BIND=0.0.0.0      → доступ из LAN (порт — PANEL_PORT)
+services:
+  admin-panel:
+    build: ./admin-panel
+    container_name: admin-panel
+    restart: always
+    environment:
+      - PANEL_USER=${PANEL_USER:-admin}
+      - PANEL_PASS=${PANEL_PASS}
+      - ENV_PATH=/data/.env
+      - ASTERISK_DIR=/data/asterisk/conf
+      - FAQ_PATH=/data/faqdata/faq.json
+      - PANEL_ULTRAVOX_URL=${PANEL_ULTRAVOX_URL:-https://app.ultravox.ai}
+      - FAQ_SERVER_URL=http://faq-server:3000
+      - NETWORK_DIAG_URL=http://network-diag:5000
+      - PROJECT_DIR=${PROJECT_DIR:-/home/user/avr-infra}
+      - COMPOSE_FILES=docker-compose-ultravox.yml:docker-compose-admin-panel.yml
+      - CRON_TZ=${CRON_TZ:-Europe/Chisinau}
+      - HEALTH_REPORT_CRON=${HEALTH_REPORT_CRON:-}
+      - HEALTH_TIMEOUT_MS=${HEALTH_TIMEOUT_MS:-}
+    ports:
+      - "${PANEL_BIND:-127.0.0.1}:${PANEL_PORT:-8090}:8090"
+    volumes:
+      - ./.env:/data/.env
+      # копии .env перед сохранением из панели — вне проекта (последние 30)
+      - ${PROJECT_DIR:-/home/user/avr-infra}-backups:/data/backups
+      - ./asterisk/conf:/data/asterisk/conf
+      - ./faq-server/data:/data/faqdata
+      - ${PROJECT_DIR:-/home/user/avr-infra}:${PROJECT_DIR:-/home/user/avr-infra}
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - avr

@@ -1,0 +1,83 @@
+/* FAQ-карточка сценария */
+.faq-title {
+  width:100%; background:var(--field); border:1px solid var(--line-strong); color:var(--tx);
+  font-size:16px; font-weight:600; padding:10px 14px; border-radius:var(--r-md); font-family:inherit;
+  transition:border-color var(--ease), box-shadow var(--ease);
+}
+.faq-id { color:var(--mut); font-size:13px; margin-top:8px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.faq-id code { color:var(--mut); background:var(--chip-bg); padding:2px 7px; border-radius:5px; font-family:var(--font-mono); }
+.lang-head { font-size:16px; font-weight:600; color:var(--tx); margin:18px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+.fld { font-size:13px; color:var(--tx); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin:14px 0 5px; }
+.fld small { color:var(--mut); font-weight:400; text-transform:none; letter-spacing:0; margin-left:6px; }
+.faq-del {
+  background:none; border:1px solid var(--bad-border); color:var(--bad);
+  padding:7px 14px; border-radius:var(--r-md); cursor:pointer; font-size:13px; font-weight:600; flex:0 0 auto;
+  transition:background var(--ease), border-color var(--ease), color var(--ease);
+}
+.faq-del:hover { background:var(--bad-soft); border-color:var(--bad); color:var(--bad-text); }
+
+textarea.answer { height:auto; min-height:64px; line-height:1.5; padding: 12px 14px; }
+textarea.kw { line-height:24px; padding: 8px 14px; height:136px; }
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.faq-col-ro {
+  background: rgba(248, 81, 73, 0.04);
+  border: 1px solid rgba(248, 81, 73, 0.38);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: inset -8px 0 16px -8px rgba(248, 81, 73, 0.3);
+}
+
+.faq-col-ru {
+  background: rgba(77, 127, 255, 0.04);
+  border: 1px solid rgba(77, 127, 255, 0.38);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: inset 8px 0 16px -8px rgba(77, 127, 255, 0.3);
+}
+
+.faq-col-ro textarea:focus {
+  border-color: var(--acc-border);
+  box-shadow: 0 0 0 3px var(--acc-soft);
+}
+
+.faq-col-ru textarea:focus {
+  border-color: var(--bad-border);
+  box-shadow: 0 0 0 3px var(--bad-soft);
+}
+
+.faq-toggle {
+  background: none;
+  border: none;
+  color: var(--mut);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 4px;
+  margin-top: 6px;
+  transition: transform var(--ease), color var(--ease);
+  flex: 0 0 auto;
+}
+.faq-toggle:hover { color: var(--tx); }
+
+/* Свёрнутое состояние карточки */
+.card.collapsed .faq-body { display: none; }
+.card.collapsed .faq-toggle { transform: rotate(-90deg); }
+
+.sticky-card {
+  position: sticky;
+  top: 80px; 
+  z-index: 90;
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding-top: 26px;
+  padding-bottom: 28px;
+  box-shadow: 0 16px 32px -8px rgba(0,0,0,0.65);
+  border-bottom: 1px solid var(--acc-border);
+}

@@ -1,0 +1,68 @@
+/* Кастомные диалоги */
+.dialog-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--overlay);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s var(--ease);
+}
+.dialog-overlay.active {
+  opacity: 1; pointer-events: auto;
+}
+.dialog-modal {
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  width: 100%; max-width: 420px;
+  box-shadow: var(--sh-lg);
+  transform: translateY(15px); transition: transform 0.2s var(--ease);
+}
+.dialog-overlay.active .dialog-modal {
+  transform: translateY(0);
+}
+.dialog-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 1px solid var(--line);
+}
+.dialog-header h3 {
+  margin: 0; font-size: 16px; font-weight: 600; color: var(--tx);
+}
+.dialog-close {
+  background: none; border: none; color: var(--mut); font-size: 22px;
+  cursor: pointer; line-height: 1; padding: 0 4px; border-radius: 4px;
+}
+.dialog-close:hover { color: var(--tx); background: var(--chip-bg); }
+
+.dialog-body { padding: 20px; }
+#customDialogMessage {
+  font-size: 14px;
+  color: var(--tx);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  margin-bottom: 16px;
+}
+#customDialogMessage:empty { margin-bottom: 0; }
+
+#customDialogInput {
+  width: 100%; background: var(--field); border: 1px solid var(--line);
+  color: var(--tx); padding: 10px 14px; border-radius: var(--r-md); font-family: inherit;
+}
+#customDialogInput.hidden { display: none; }
+#customDialogInput:focus { outline:none; border-color:var(--acc-border); box-shadow:var(--sh-focus); }
+
+.dialog-footer { padding: 16px 20px; border-top: 1px solid var(--line); }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 10px; width: 100%; }
+
+/* Кнопки диалога */
+.btn {
+  padding: 8px 16px; border-radius: var(--r-md); cursor: pointer;
+  font-size: 14px; font-weight: 600; border: 1px solid transparent; transition: all 0.2s;
+}
+.btn-primary { background: var(--acc); color: #fff; box-shadow:0 1px 0 rgba(255,255,255,.08) inset; }
+.btn-primary:hover { background: var(--acc-hover); }
+.btn-secondary { background: none; border-color: var(--line-strong); color: var(--mut); }
+.btn-secondary:hover { background: var(--panel-2); color: var(--tx); border-color: var(--line-hover); }
+.btn-danger { background: var(--bad); color: #fff; box-shadow:0 1px 0 rgba(255,255,255,.08) inset; }
+.btn-danger:hover { background: #e0443e; }

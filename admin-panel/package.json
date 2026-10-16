@@ -1,0 +1,12 @@
+{
+  "name": "avr-admin-panel",
+  "version": "1.0.0",
+  "description": "Ops panel for avr-infra: env/asterisk config editor + health monitoring + daily Telegram check",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "node-cron": "^3.0.3"
+  }
+}
