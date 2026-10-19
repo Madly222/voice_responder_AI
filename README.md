@@ -23,6 +23,12 @@
 | ![Тулзы](images/screenshots/05-ultravox-tools.png) | ![Переменные .env](images/screenshots/03-env.png) |
 | Тулзы и история изменений агента | Переменные `.env` с описаниями |
 
+<p align="center">
+  <img src="images/screenshots/09-telegram.png" alt="Telegram: отчёт о звонке и плановая проверка" width="55%">
+</p>
+<p align="center"><b>Telegram-бот:</b> отчёт о каждом звонке и результат плановой проверки сервисов
+(текст сформирован кодом <code>faq-server/tools/callLogger.js</code> и <code>admin-panel/server.js</code>)</p>
+
 <details>
 <summary>Ещё скриншоты</summary>
 
