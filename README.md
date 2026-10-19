@@ -10,6 +10,31 @@
 > Все имена, домены, IP-адреса, номера и идентификаторы заменены на примеры
 > (`example.com`, `192.0.2.0/24`, `203.0.113.0/24` и т.п.).
 
+![Панель управления — мониторинг](images/screenshots/01-monitoring.png)
+
+## Скриншоты
+
+Панель управления на демо-данных: FAQ, промпты и тулзы — из этого репозитория, статусы и журнал вымышленные.
+
+| | |
+|---|---|
+| ![FAQ](images/screenshots/02-faq.png) | ![Агент Ultravox](images/screenshots/04-ultravox-agent.png) |
+| FAQ: ключевые слова и ответы на RO и RU | Агент Ultravox: голос, приветствие, промпт |
+| ![Тулзы](images/screenshots/05-ultravox-tools.png) | ![Переменные .env](images/screenshots/03-env.png) |
+| Тулзы и история изменений агента | Переменные `.env` с описаниями |
+
+<details>
+<summary>Ещё скриншоты</summary>
+
+| | |
+|---|---|
+| ![Asterisk](images/screenshots/06-asterisk.png) | ![Справка](images/screenshots/07-guide.png) |
+| Конфиги Asterisk | Справка и проверка первого запуска |
+| ![Светлая тема](images/screenshots/08-monitoring-light.png) | |
+| Светлая тема | |
+
+</details>
+
 ## Что сделано поверх AVR
 
 - **Два агента Ultravox (RO / RU)** и голосовое меню выбора языка в Asterisk; промпты — `ultravox/prompts/`.
