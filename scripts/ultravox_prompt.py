@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-ultravox_prompt.py — найти и заменить фразу в промпте агента Ultravox (callTemplate.systemPrompt).
+ultravox_prompt.py: find and replace a phrase in an Ultravox agent prompt (callTemplate.systemPrompt).
 
-Проверка (ничего не меняет): сколько раз фраза встречается и где
+Check (changes nothing): how many times the phrase occurs and where
     python3 scripts/ultravox_prompt.py --check 'până la treizeci de secunde'
 
-Замена всех вхождений (перед заменой — полная копия агента в ~/ultravox_agent_backup_<дата>.json):
+Replace every occurrence (a full copy of the agent is saved to ~/ultravox_agent_backup_<date>.json first):
     python3 scripts/ultravox_prompt.py --replace 'până la treizeci de secunde' 'câteva secunde'
-    (без --apply только покажет, что будет заменено)
+    (without --apply it only shows what would be replaced)
     python3 scripts/ultravox_prompt.py --replace '...' '...' --apply
 
-Вернуть промпт из копии:
-    python3 scripts/ultravox_prompt.py --restore ~/ultravox_agent_backup_<дата>.json --apply
+Restore the prompt from a copy:
+    python3 scripts/ultravox_prompt.py --restore ~/ultravox_agent_backup_<date>.json --apply
 
-По умолчанию правится RO-агент; русский — ключом --agent ru (любой режим).
+The RO agent is edited by default; the Russian one with --agent ru (any mode).
 
-Ключ и ID агента берутся из .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID / ULTRAVOX_AGENT_ID_RU). Только stdlib.
+The key and agent ID come from .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID / ULTRAVOX_AGENT_ID_RU). Stdlib only.
 """
 import argparse
 import json
@@ -51,7 +51,7 @@ def show_hits(prompt, phrase, width=60):
 
 
 def save_prompt(key, agent_id, ct, new_prompt):
-    """Шлёт весь callTemplate с новым промптом и проверяет, что остальное не изменилось."""
+    """Send the whole callTemplate with the new prompt and check that nothing else changed."""
     before = {k: v for k, v in ct.items() if k != 'systemPrompt'}
     payload = dict(ct)
     payload['systemPrompt'] = new_prompt
@@ -64,7 +64,7 @@ def save_prompt(key, agent_id, ct, new_prompt):
     if ct2.get('systemPrompt') != new_prompt:
         sys.exit('ВНИМАНИЕ: после сохранения промпт не совпадает с ожидаемым — проверьте в дашборде')
     changed = sorted(k for k in set(before) | set(ct2)
-                     if k not in ('systemPrompt', 'created', 'updated')  # отметки времени меняются всегда
+                     if k not in ('systemPrompt', 'created', 'updated')  # timestamps always change
                      and before.get(k) != ct2.get(k))
     print(f'OK (HTTP {status}): промпт сохранён, длина {len(new_prompt)} символов')
     if changed:

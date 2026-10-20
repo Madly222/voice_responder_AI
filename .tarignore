@@ -1,13 +1,13 @@
 # ============================================================
-# .tarignore — список исключений для архивов, отправляемых на анализ
-# Использование: tar czf out.tar.gz --exclude-from=.tarignore -C <parent> <projectdir>
-# Или через скрипт mktar.sh (см. рядом).
+# .tarignore: exclusions for archives sent out for code review
+# Usage: tar czf out.tar.gz --exclude-from=.tarignore -C <parent> <projectdir>
+# Or use mktar.sh next to this file.
 # ============================================================
 
-# --- СЕКРЕТЫ (главное) ---
+# --- SECRETS (most important) ---
 .env
-# ВАЖНО: tar НЕ понимает отрицание (!.env.example), поэтому широкий '.env.*'
-# не используем — он выкинул бы и .env.example. Перечисляем реальные варианты явно:
+# IMPORTANT: tar does NOT support negation (!.env.example), so the broad '.env.*'
+# pattern is not used: it would drop .env.example too. Real variants are listed explicitly:
 .env.local
 .env.dev
 .env.development
@@ -19,7 +19,7 @@
 .env.bak*
 .env.backup*
 *.bak-*
-# .env.example НЕ исключаем — он остаётся в архиве как шаблон конфига.
+# .env.example is NOT excluded: it stays in the archive as the config template.
 *.pem
 *.key
 *.ppk
@@ -46,7 +46,7 @@ service-account*.json
 gcp-*.json
 *token*.json
 
-# --- ДАННЫЕ / ПД (телефоны, логи звонков, дампы) ---
+# --- DATA / PERSONAL DATA (phone numbers, call logs, dumps) ---
 calls.txt
 *.sqlite
 *.sqlite3
@@ -56,7 +56,7 @@ calls.txt
 data/*.txt
 data/*.csv
 
-# --- ЛОГИ И ВРЕМЕННЫЕ ---
+# --- LOGS AND TEMP FILES ---
 *.log
 logs/
 ngrok.log
@@ -67,7 +67,7 @@ temp/
 *.bak
 *~
 
-# --- ЗАВИСИМОСТИ И БИЛДЫ (мне не нужны для анализа кода) ---
+# --- DEPENDENCIES AND BUILDS (not needed for code review) ---
 .git
 .git/
 node_modules
@@ -87,19 +87,19 @@ build/
 .next/
 .cache/
 
-# --- ВЛОЖЕННЫЕ АРХИВЫ (тот самый avr-cleaned.tar.gz) ---
+# --- NESTED ARCHIVES (e.g. avr-cleaned.tar.gz) ---
 *.tar
 *.tar.gz
 *.tgz
 *.zip
 *.gz
 
-# --- РЕДАКТОР / ОС ---
+# --- EDITOR / OS ---
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 
-# --- МУСОР ОТ СОРВАННЫХ КОМАНД ---
+# --- JUNK FROM BROKEN COMMANDS ---
 -d
 -H

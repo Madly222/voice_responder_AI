@@ -1,19 +1,19 @@
 'use strict';
-// Безопасность панели: вход с защитой от подбора пароля и журнал действий.
-// Журнал — instance/audit.log (вне git): кто, откуда, когда и что сделал. Значения настроек
-// и пароли в журнал НЕ пишутся — только имена ключей, полей, файлов и сервисов.
+// Panel security: login with brute-force protection and an audit log.
+// The log is instance/audit.log (outside git): who, from where, when and what. Setting values
+// and passwords are NOT logged, only names of keys, fields, files and services.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
 const PROJECT_DIR = process.env.PROJECT_DIR || '/project';
 const AUDIT_PATH = path.join(process.env.INSTANCE_DIR || path.join(PROJECT_DIR, 'instance'), 'audit.log');
-const AUDIT_MAX_BYTES = 2 * 1024 * 1024;   // больше — оставляем последнюю половину
-const FAIL_LIMIT = 10;                     // неверных паролей с одного адреса…
-const FAIL_WINDOW_MS = 15 * 60 * 1000;     // …за 15 минут —
-const BLOCK_MS = 15 * 60 * 1000;           // блокировка на 15 минут
+const AUDIT_MAX_BYTES = 2 * 1024 * 1024;   // beyond this, keep the last half
+const FAIL_LIMIT = 10;                     // wrong passwords from one address...
+const FAIL_WINDOW_MS = 15 * 60 * 1000;     // ...within 15 minutes ->
+const BLOCK_MS = 15 * 60 * 1000;           // blocked for 15 minutes
 
-// ---------- журнал ----------
+// ---------- audit log ----------
 function audit(entry) {
   const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n';
   try {
@@ -37,7 +37,7 @@ function readAudit(limit = 100) {
 
 const clientIp = (req) => String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
 
-// ---------- вход ----------
+// ---------- login ----------
 const fails = new Map();   // ip -> { count, first, blockedUntil }
 
 function sameSecret(a, b) {
@@ -45,7 +45,7 @@ function sameSecret(a, b) {
   return crypto.timingSafeEqual(h(a), h(b));
 }
 
-// Basic-auth с блокировкой подбора. Запрос без заголовка (первый заход браузера) попыткой не считается.
+// Basic auth with brute-force blocking. A request without the header (the browser's first visit) does not count as an attempt.
 function authGuard({ user, pass, realm }) {
   return (req, res, next) => {
     const ip = clientIp(req);
@@ -82,8 +82,8 @@ function authGuard({ user, pass, realm }) {
   };
 }
 
-// ---------- что записать в журнал ----------
-// Только изменяющие запросы; «проверки» (preview, dryRun) не пишем.
+// ---------- what goes into the audit log ----------
+// Only mutating requests; checks (preview, dryRun) are not logged.
 function describe(req) {
   const b = req.body || {};
   const p = req.path;
@@ -116,7 +116,7 @@ function auditMiddleware(req, res, next) {
   next();
 }
 
-// ---------- оценка доступа к панели (для «Мониторинга») ----------
+// ---------- panel access assessment (for the Monitoring tab) ----------
 const WEAK = ['admin', 'password', 'parola', 'qwerty', '12345678', '123456789', 'avr', 'changeme', 'change_me'];
 
 function panelCheck(env) {

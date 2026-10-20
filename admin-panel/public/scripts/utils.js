@@ -76,10 +76,10 @@ const Dialog = {
     async prompt(message, defaultValue = '', title = 'Ввод данных') { return this.show({ type: 'prompt', message, defaultValue, title }); }
 };
 
-// -------- Свои выпадающие списки --------
-// Системный список Chrome на Windows рисуется с белым полем, поэтому каждый <select> прячем
-// и показываем свой список. Сам <select> остаётся источником значения: код читает .value,
-// слушает 'change', перестраивает options — список это подхватывает.
+// -------- Custom dropdowns --------
+// Chrome on Windows draws the native list with a white background, so every <select> is hidden
+// and a custom list is shown instead. The <select> stays the source of the value: code reads .value,
+// listens to 'change' and rebuilds options, and the custom list follows.
 const SELECT_PROTO = HTMLSelectElement.prototype;
 const SEL_VALUE = Object.getOwnPropertyDescriptor(SELECT_PROTO, 'value');
 const SEL_INDEX = Object.getOwnPropertyDescriptor(SELECT_PROTO, 'selectedIndex');
@@ -144,7 +144,7 @@ function enhanceSelect(sel) {
     }
   };
 
-  // программная смена значения (sel.value = …) тоже обновляет кнопку
+  // setting the value from code (sel.value = ...) also updates the button
   Object.defineProperty(sel, 'value', {
     configurable: true,
     get() { return SEL_VALUE.get.call(this); },
@@ -171,8 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .observe(document.body, { childList: true, subtree: true });
 });
 
-// -------- Светлая / тёмная тема --------
-// Текущая тема ставится в <head> (index.html) до отрисовки; здесь — кнопка в шапке и запоминание выбора.
+// -------- Light / dark theme --------
+// The current theme is set in <head> (index.html) before first paint; this is the header toggle and remembering the choice.
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   const b = document.getElementById('themeToggle');

@@ -1,6 +1,6 @@
 // -------- ENV --------
-// Группы и описания приходят с сервера (из .env.example). Секреты замаскированы:
-// поле с «••••» не трогаем — значение останется прежним.
+// Groups and descriptions come from the server (from .env.example). Secrets are masked:
+// a field showing "••••" is left alone and keeps its current value.
 const escAttr = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 
 function envField(it) {
@@ -55,7 +55,7 @@ async function loadEnv() {
   $('#saveEnv').onclick = async () => {
     const updates = {};
     document.querySelectorAll('#envrows [data-key]').forEach(i => {
-      if (i.value !== i.dataset.orig) updates[i.dataset.key] = i.value;   // шлём только изменённое
+      if (i.value !== i.dataset.orig) updates[i.dataset.key] = i.value;   // send only what changed
     });
     document.querySelectorAll('#envrows .env-err').forEach(e => e.textContent = '');
     document.querySelectorAll('#envrows .env-row').forEach(r => r.classList.remove('has-err'));
@@ -81,7 +81,7 @@ async function loadEnv() {
   showPending();
 }
 
-// Что ждёт применения: сервисы со старыми значениями, тулзы Ultravox, предупреждения по промптам.
+// What is pending: services with stale values, Ultravox tools, prompt warnings.
 function planText(p) {
   const L = [];
   p.services.forEach(s => L.push('• перезапустить '+s.service

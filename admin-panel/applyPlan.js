@@ -1,9 +1,9 @@
 'use strict';
-// «Применить» по факту: какие сервисы запущены со старыми значениями из .env и что ещё нужно сделать.
+// "Apply" based on reality: which services run with stale .env values and what else needs doing.
 //
-// Сервис устарел, если значение переменной в запущенном контейнере (docker inspect) не совпадает
-// с тем, что получилось бы из .env сейчас (строки environment/ports в compose). Так видны и правки
-// .env мимо панели. Значения наружу не отдаются — только имена переменных.
+// A service is stale if a variable in the running container (docker inspect) differs from
+// what .env would produce now (environment/ports lines in compose). This also catches .env edits
+// made outside the panel. Values are never exposed, only variable names.
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
@@ -11,14 +11,14 @@ const { execFile } = require('child_process');
 const PROJECT_DIR = process.env.PROJECT_DIR || '/project';
 const COMPOSE_FILES = (process.env.COMPOSE_FILES || 'docker-compose-ultravox.yml:docker-compose-admin-panel.yml').split(':');
 const SELF = 'admin-panel';
-// Рестарт этих сервисов обрывает идущие звонки.
+// Restarting these services drops calls in progress.
 const CALL_SERVICES = ['avr-core', 'avr-core-ru', 'avr-sts-ultravox', 'avr-sts-ultravox-ru', 'avr-asterisk', 'avr-ami'];
-// От этих ключей зависят тулзы в Ultravox — после их смены нужна синхронизация тулзов.
+// Ultravox tools depend on these keys; changing them requires a tool sync.
 const TOOL_KEYS = ['TOOLS_PUBLIC_URL', 'TOOLS_API_KEY', 'BILLING_PROVIDER', 'NETWORK_SOURCE',
   'COMPANY_NAME', 'CLIENT_ID_LABEL', 'CLIENT_ID_FORMAT'];
 
-// docker compose берёт переменные окружения процесса раньше .env, а панель сама запущена с PANEL_*,
-// CRON_TZ и т.п. — поэтому compose запускаем с чистым окружением, иначе подставятся старые значения.
+// docker compose prefers process environment variables over .env, and the panel itself runs with PANEL_*,
+// CRON_TZ etc., so compose is run with a clean environment; otherwise stale values would be substituted.
 const CLEAN_ENV = () => ({ PATH: process.env.PATH, HOME: process.env.HOME || '/root' });
 
 function run(cmd, args, timeout = 60000) {
@@ -31,7 +31,7 @@ function run(cmd, args, timeout = 60000) {
 }
 const composeArgs = () => ['compose', '--env-file', '.env', ...COMPOSE_FILES.flatMap((f) => ['-f', f])];
 
-// Подстановка как в compose: ${V}, ${V:-def}, ${V-def}, $V.
+// Interpolation as in compose: ${V}, ${V:-def}, ${V-def}, $V.
 function interpolate(tpl, env) {
   return tpl.replace(/\$\{(\w+)(?:(:?)-([^}]*))?\}|\$(\w+)/g, (m, v, colon, def, bare) => {
     const name = v || bare;
@@ -42,7 +42,7 @@ function interpolate(tpl, env) {
 }
 const varsIn = (s) => [...s.matchAll(/\$\{(\w+)[^}]*\}|\$(\w+)/g)].map((m) => m[1] || m[2]);
 
-// Из compose-файлов: для каждого сервиса строки environment (NAME=шаблон) и ports.
+// From the compose files: environment lines (NAME=template) and ports for each service.
 function parseCompose() {
   const services = {};
   for (const f of COMPOSE_FILES) {
@@ -78,7 +78,7 @@ async function inspect(service) {
   return { env, ports: info.HostConfig.PortBindings || {} };
 }
 
-// Сервисы, которым нужен перезапуск, и какие переменные у них устарели.
+// Services that need a restart, and which of their variables are stale.
 async function staleServices(env) {
   const out = [];
   for (const [service, def] of Object.entries(parseCompose())) {
@@ -94,7 +94,7 @@ async function staleServices(env) {
     for (const p of def.ports) {
       const refs = varsIn(p);
       if (!refs.length) continue;
-      const parts = interpolate(p, env).split(':');           // хост-ip:хост-порт:порт-контейнера
+      const parts = interpolate(p, env).split(':');           // host-ip:host-port:container-port
       const [hostIp, hostPort, cport] = parts.length === 3 ? parts : ['0.0.0.0', parts[0], parts[1]];
       const b = (live.ports[`${cport}/tcp`] || [])[0] || {};
       if ((b.HostIp || '0.0.0.0') !== hostIp || String(b.HostPort) !== String(hostPort)) refs.forEach((v) => vars.add(v));
@@ -118,9 +118,9 @@ async function plan(env, uvTools) {
   };
 }
 
-// Панель не может пересоздать сама себя: compose внутри её контейнера погибает вместе со старым
-// контейнером, и новый остаётся недосозданным. Поэтому пересоздание делает отдельный короткоживущий
-// контейнер из того же образа (docker-cli + compose) — с чистым окружением образа, без значений панели.
+// The panel cannot recreate itself: compose running inside its container dies with the old
+// container and the new one is left half-created. So recreation is done by a separate short-lived
+// container from the same image (docker-cli + compose), with the image's clean environment and none of the panel's values.
 async function recreateSelf({ build = false } = {}) {
   const [me] = JSON.parse(await run('docker', ['inspect', require('os').hostname()]));
   const compose = ['docker', ...composeArgs(), 'up', '-d', ...(build ? ['--build'] : []), '--force-recreate', SELF]
@@ -130,7 +130,7 @@ async function recreateSelf({ build = false } = {}) {
     '--entrypoint', 'sh', me.Image, '-c', `sleep 2; ${compose}`]);
 }
 
-// Выполнить: сервисы (кроме панели) → тулзы → панель (отдельным контейнером, после ответа).
+// Run: services (except the panel) -> tools -> panel (in a separate container, after the response).
 async function execute(env, uvTools, { log = console.log } = {}) {
   const p = await plan(env, uvTools);
   const services = p.services.filter((s) => !s.self).map((s) => s.service);

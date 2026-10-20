@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-diag_probe.py — находит управляющие IP коммутаторов в NetBox и проверяет SSH.
+diag_probe.py: finds switch management IPs in NetBox and checks SSH.
 
-Запуск из ~/avr-infra:
-    python3 scripts/diag_probe.py              # логин пробуется максимум на 3 устройствах
+Run from ~/avr-infra:
+    python3 scripts/diag_probe.py              # login is tried on at most 3 devices
     python3 scripts/diag_probe.py --ssh-limit 10
-    python3 scripts/diag_probe.py --ssh-limit 0   # только порт 22 + баннер, без логина
+    python3 scripts/diag_probe.py --ssh-limit 0   # port 22 + banner only, no login
 
-Только stdlib, зависимостей нет. Пароли не выводятся.
+Stdlib only, no dependencies. Passwords are never printed.
 """
 import argparse
 import csv
@@ -39,7 +39,7 @@ def load_env(path):
 
 
 def nb_get_all(base, token, endpoint, params=""):
-    """Пагинация через offset (ссылки next у NetBox указывают на старый адрес)."""
+    """Paginate with offset (NetBox 'next' links point at an old address)."""
     out, offset, limit = [], 0, 500
     while True:
         url = f"{base}/api/{endpoint}/?limit={limit}&offset={offset}{params}"
@@ -54,7 +54,7 @@ def nb_get_all(base, token, endpoint, params=""):
 
 
 def strip_mask(addr):
-    """Возвращает IPv4 без маски; IPv6 и мусор -> '' (пропускаются)."""
+    """Return the IPv4 address without the mask; IPv6 and junk -> '' (skipped)."""
     a = (addr or "").split("/")[0].strip()
     try:
         return a if ipaddress.ip_address(a).version == 4 else ""
@@ -157,7 +157,7 @@ def main():
             r["vendor"] = vendor_guess(r["manufacturer"], r["model"], banner)
             r["test_ssh"] = ""
 
-    # логин — последовательно, Cisco первыми, стоп после 2 ошибок авторизации подряд
+    # log in one at a time, Cisco first; stop after 2 auth failures in a row
     open_rows = [r for r in rows if r["port22"] == "open"]
     open_rows.sort(key=lambda r: r["vendor"] != "Cisco")
     auth_fail = 0

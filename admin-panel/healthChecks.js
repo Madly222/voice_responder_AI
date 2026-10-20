@@ -6,7 +6,7 @@ const tls = require('tls');
 const TIMEOUT = Number(process.env.HEALTH_TIMEOUT_MS) || 8000;
 const ultravoxApi = (env) => (env.ULTRAVOX_API_URL || 'https://api.ultravox.ai/api').replace(/\/+$/, '');
 
-// Сколько дней осталось сертификату на публичном входе (null — не удалось прочитать).
+// Days left on the public entry point's certificate (null if it could not be read).
 function certDaysLeft(host, port, servername) {
   return new Promise((resolve) => {
     let done = false;
@@ -24,8 +24,8 @@ function certDaysLeft(host, port, servername) {
   });
 }
 
-// Каждая проверка: { id, label, group, envKeys, run(env) -> {ok, detail} }
-// detail — короткое человекочитаемое описание (текст ошибки при ok:false).
+// Each check: { id, label, group, envKeys, run(env) -> {ok, detail} }
+// detail is a short human-readable description (the error text when ok:false).
 const CHECKS = [
   {
     id: 'faq-server',
@@ -80,9 +80,9 @@ const CHECKS = [
         return { ok: true, off: true, detail: `выключено (BILLING_PROVIDER=${env.BILLING_PROVIDER || 'none'})` };
       const base = env.WHMCS_CUSTOM_API;
       if (!base) return { ok: false, detail: 'WHMCS_CUSTOM_API не задан' };
-      // Настоящая проверка: шлём реальный запрос с api_key и разбираем ответ,
-      // а не просто пингуем сервер. Osmp 00000 — заведомо несуществующий, нам важен не клиент,
-      // а что PHP отработал, ключ принят и БД ответила.
+      // A real check: send an actual request with api_key and parse the answer
+      // instead of just pinging the server. OSMP 00000 never exists; what matters is not the client
+      // but that PHP ran, the key was accepted and the DB answered.
       let r;
       try {
         r = await axios.get(base, {
@@ -93,14 +93,14 @@ const CHECKS = [
       if (r.status >= 500) return { ok: false, detail: `сервер недоступен (HTTP ${r.status})` };
       const d = r.data;
       if (typeof d !== 'object' || d === null) return { ok: false, detail: `не JSON (HTTP ${r.status}) — не тот URL?` };
-      // api_client.php отвечает error:true при проблеме доступа/ключа
+      // api_client.php answers error:true on an access/key problem
       if (d.error === true) {
         const m = (d.message || '').toLowerCase();
         if (m.includes('unauthorized')) return { ok: false, detail: 'api_key не совпадает с .env' };
         if (m.includes('access denied')) return { ok: false, detail: 'IP проекта не в allowed_ips файла' };
         return { ok: false, detail: d.message || 'ошибка биллинга' };
       }
-      // error:false (даже found:false) = вся цепочка жива: ключ принят, БД ответила
+      // error:false (even with found:false) means the whole chain works: key accepted, DB answered
       return { ok: true, detail: 'связка работает (ключ принят, БД отвечает)' };
     },
   },
@@ -157,8 +157,8 @@ const CHECKS = [
       try { u = new URL(publicUrl); } catch { return { ok: false, detail: `TOOLS_PUBLIC_URL некорректен: ${publicUrl}` }; }
       const servername = u.hostname;
       const port = u.port || '443';
-      // Изнутри сети имя резолвится во внешний IP, куда из LAN хода нет (нет hairpin NAT),
-      // поэтому стучимся на внутренний адрес, а имя для SNI и проверки сертификата берём из URL.
+      // Inside the network the name resolves to the external IP, unreachable from the LAN (no hairpin NAT),
+      // so connect to the internal address and take the name for SNI and certificate checks from the URL.
       const [addrHost, addrPort] = (env.TOOLS_CHECK_ADDR || `${servername}:${port}`).split(':');
 
       const agent = new https.Agent({ servername, keepAlive: false });

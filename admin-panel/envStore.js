@@ -2,9 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Секреты маскируем в UI: по имени ключа и по отметке «(секрет)» в .env.example (envSchema.js).
+// Secrets are masked in the UI by key name and by the "(секрет)" marker in .env.example (envSchema.js).
 const { SECRET_HINT } = require('./envSchema');
-// Копии .env перед записью — вне контейнера и вне проекта (см. compose панели), храним последние N.
+// .env backups before each write live outside the container and the project (see the panel compose file); the last N are kept.
 const BACKUP_DIR = process.env.ENV_BACKUP_DIR || '/data/backups';
 const BACKUP_KEEP = 30;
 
@@ -15,8 +15,8 @@ function mask(value) {
   return '••••' + v.slice(-4);
 }
 
-// Разбирает .env построчно, сохраняя порядок и комментарии.
-// Возвращает [{type:'kv', key, value, secret} | {type:'raw', text}]
+// Parses .env line by line, preserving order and comments.
+// Returns [{type:'kv', key, value, secret} | {type:'raw', text}]
 function parse(envPath) {
   const text = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
   return text.split('\n').map((line) => {
@@ -24,14 +24,13 @@ function parse(envPath) {
     if (!m) return { type: 'raw', text: line };
     const orig = line;
     let value = m[2];
-    // снять окружающие кавычки для отображения
     if (/^'.*'$/.test(value)) value = value.slice(1, -1);
     else if (/^".*"$/.test(value)) { try { value = JSON.parse(value); } catch (_) { value = value.slice(1, -1); } }
     return { type: 'kv', key: m[1], value, line: orig, secret: SECRET_HINT.test(m[1]) };
   });
 }
 
-// Для UI: список переменных с замаскированными секретами. secretKeys — секреты из .env.example.
+// For the UI: variables with secrets masked. secretKeys are the secrets declared in .env.example.
 function readMasked(envPath, secretKeys = new Set()) {
   return parse(envPath)
     .filter((e) => e.type === 'kv')
@@ -46,8 +45,8 @@ function readMasked(envPath, secretKeys = new Set()) {
     });
 }
 
-// Значение для записи в .env так, чтобы docker compose прочитал его как есть:
-// одинарные кавычки — без подстановки $; двойные — только если внутри есть ' (тогда $ удваиваем).
+// Quote a value for .env so docker compose reads it verbatim:
+// single quotes disable $ interpolation; double quotes only when the value contains ' (then $ is doubled).
 function quote(v) {
   v = String(v);
   if (!/[\s"'#$\`]/.test(v)) return v;
@@ -62,15 +61,15 @@ function backup(envPath) {
   const dst = path.join(BACKUP_DIR, `env-${stamp}`);
   fs.copyFileSync(envPath, dst);
   fs.chmodSync(dst, 0o600);
-  // панель работает от root — отдаём копию владельцу папки, чтобы её можно было открыть без sudo
+  // the panel runs as root: hand the backup to the folder owner so it can be opened without sudo
   try { const st = fs.statSync(BACKUP_DIR); fs.chownSync(dst, st.uid, st.gid); } catch (_) {}
   const old = fs.readdirSync(BACKUP_DIR).filter((f) => f.startsWith('env-')).sort();
   for (const f of old.slice(0, Math.max(0, old.length - BACKUP_KEEP))) fs.unlinkSync(path.join(BACKUP_DIR, f));
 }
 
-// Применяет изменения { KEY: newValue }. Только переданные ключи меняются.
-// Пустая строка = очистить значение. Секрет со значением из одних '•' игнорируется
-// (пользователь не менял замаскированное поле). Делает бэкап перед записью.
+// Applies { KEY: newValue } changes. Only the given keys change.
+// An empty string clears the value. A secret whose value is all '•' is ignored
+// (the user did not touch the masked field). Makes a backup before writing.
 function applyUpdates(envPath, updates) {
   const entries = parse(envPath);
   backup(envPath);
@@ -80,17 +79,17 @@ function applyUpdates(envPath, updates) {
     if (!(e.key in updates)) continue;
     const nv = updates[e.key];
     seen.add(e.key);
-    if (String(nv).includes('•')) continue; // не трогаем немодифицированный секрет (маска содержит •)
+    if (String(nv).includes('•')) continue; // untouched secret (the mask contains •)
     if (String(nv) === e.value) continue;
     e.value = String(nv);
     e.changed = true;
   }
-  // Новые ключи, которых не было в файле — добавляем в конец.
+  // Keys not yet in the file are appended at the end.
   const added = Object.keys(updates).filter((k) => !seen.has(k) && !String(updates[k]).includes('•'));
 
   const lines = entries.map((e) => {
     if (e.type === 'raw') return e.text;
-    // неизменённые строки пишем как были — не трогаем чужое форматирование
+    // unchanged lines are written back as is, keeping their original formatting
     return e.changed ? `${e.key}=${quote(e.value)}` : e.line;
   });
   for (const k of added) lines.push(`${k}=${quote(updates[k])}`);
@@ -98,8 +97,8 @@ function applyUpdates(envPath, updates) {
   return { changed: entries.filter((e) => e.changed).map((e) => e.key), added };
 }
 
-// Полный набор значений (незамаскированный) — только для внутренних проверок,
-// НИКОГДА не отдаётся в UI.
+// All values, unmasked: for internal checks only,
+// NEVER sent to the UI.
 function readRaw(envPath) {
   const out = {};
   for (const e of parse(envPath)) if (e.type === 'kv') out[e.key] = e.value;

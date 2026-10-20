@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AVR — панель управления</title>
   <script>
-    // Тема до отрисовки (без мигания): сохранённый выбор, иначе — тема системы.
+    // Set the theme before first paint (no flash): the saved choice, otherwise the system theme.
     (function () {
       var t = null;
       try { t = localStorage.getItem('panel-theme'); } catch (e) {}
@@ -36,7 +36,7 @@
     <button class="ghost theme-toggle" id="themeToggle" type="button" title="Светлая / тёмная тема"></button>
   </header>
   <main>
-    <!-- Вкладка Мониторинг -->
+    <!-- Monitoring tab -->
     <section id="tab-health">
       <div class="card">
         <div class="bar">
@@ -58,7 +58,7 @@
       </div>
     </section>
 
-    <!-- Вкладка FAQ -->
+    <!-- FAQ tab -->
     <section id="tab-faq" hidden>
       <div class="card">
         <div class="bar">
@@ -76,7 +76,7 @@
       <div id="faqlist">Загрузка…</div>
     </section>
 
-    <!-- Вкладка .env -->
+    <!-- .env tab -->
     <section id="tab-env" hidden>
       <div class="card" style="border-top:2px solid var(--acc)">
         <div class="grp">Доступ к панели</div>
@@ -106,7 +106,7 @@
       </div>
     </section>
 
-    <!-- Вкладка Ultravox -->
+    <!-- Ultravox tab -->
     <section id="tab-ultravox" hidden>
       <div class="card">
         <div class="bar">
@@ -121,7 +121,7 @@
       <div class="card" id="uvtools">Загрузка тулзов…</div>
     </section>
 
-    <!-- Вкладка Asterisk -->
+    <!-- Asterisk tab -->
     <section id="tab-asterisk" hidden>
       <div class="card">
         <div class="bar">
@@ -133,7 +133,7 @@
         <textarea id="atext" spellcheck="false">Загрузка…</textarea>
       </div>
     </section>
-    <!-- Вкладка Справка -->
+    <!-- Guide tab -->
     <section id="tab-guide" hidden>
       <div class="card" id="guideCheck">Загрузка…</div>
       <div class="guide-wrap">
@@ -144,7 +144,7 @@
   </main>
   <div class="toast" id="toast"></div>
 
-  <!-- Кастомное диалоговое окно -->
+  <!-- Custom dialog -->
   <div class="dialog-overlay" id="customDialogOverlay">
     <div class="dialog-modal">
       <div class="dialog-header">

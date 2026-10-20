@@ -1,12 +1,12 @@
 'use strict';
-// Наши тулзы Ultravox из панели: сверка с шаблонами, правки установки, синхронизация.
+// Our Ultravox tools from the panel: comparison with templates, per-installation edits, sync.
 //
-// Шаблоны — ultravox/tools.json (git). Правки конкретной установки (описание, таймаут) —
-// instance/ultravox/tools.json (вне git) поверх шаблона. Из них строится «как должно быть»:
-//   адрес  = TOOLS_PUBLIC_URL + path,  ключ X-AVR-Key = TOOLS_API_KEY,
-//   uv_call_id = ID звонка Ultravox (автоматический параметр, P-02),
-//   {COMPANY_NAME} {CLIENT_ID_LABEL} {CLIENT_ID_FORMAT} — из .env.
-// Тулз с requires: billing | network подключается к агентам, только если функция включена.
+// Templates are ultravox/tools.json (in git). Per-installation edits (description, timeout) are
+// instance/ultravox/tools.json (outside git) on top of the template. Together they define the target state:
+//   URL    = TOOLS_PUBLIC_URL + path,  X-AVR-Key = TOOLS_API_KEY,
+//   uv_call_id = Ultravox call ID (automatic parameter, P-02),
+//   {COMPANY_NAME} {CLIENT_ID_LABEL} {CLIENT_ID_FORMAT} from .env.
+// A tool with requires: billing | network is attached to agents only if that feature is enabled.
 const fs = require('fs');
 const path = require('path');
 const uvx = require('./ultravox');
@@ -39,14 +39,14 @@ function fill(text, env) {
   return String(text || '').replace(/\{(COMPANY_NAME|CLIENT_ID_LABEL|CLIENT_ID_FORMAT)\}/g, (m, k) => vals[k]);
 }
 
-// Как тулз должен выглядеть в Ultravox.
+// What the tool should look like in Ultravox.
 function desired(env) {
   const ov = overrides();
   const base = (env.TOOLS_PUBLIC_URL || '').replace(/\/+$/, '');
   return templates().map((t) => {
     const o = ov[t.name] || {};
     const def = {
-      modelToolName: t.name,   // имя тулза для модели — обязательно в определении
+      modelToolName: t.name,   // the model-facing tool name is required in the definition
       description: fill(o.description || t.description, env),
       dynamicParameters: (t.dynamicParameters || []).map((p) => ({
         ...p, schema: { ...p.schema, description: fill(p.schema && p.schema.description, env) } })),
@@ -65,7 +65,7 @@ const paramsKey = (list) => JSON.stringify((list || [])
   .map((p) => ({ name: p.name, location: p.location, schema: p.schema || {}, required: !!p.required }))
   .sort((a, b) => a.name.localeCompare(b.name)));
 
-// Отличия живого тулза от нужного (значение ключа не показываем — только совпадает ли).
+// Differences between the live tool and the target (the key value is never shown, only whether it matches).
 function compare(live, want, env) {
   const d = (live && live.definition) || {};
   const diffs = [];
@@ -113,8 +113,8 @@ async function status(env) {
     for (const a of agents) {
       const sel = ((a.agent.callTemplate || {}).selectedTools || []).find((s) =>
         (live && s.toolId === live.toolId) || s.nameOverride === w.name || s.toolName === w.name);
-      // Ultravox при подключении сам копирует в агента имя и описание тулза; расхождение —
-      // только если копия устарела (тулз поменяли после подключения). Лечится переподключением.
+      // When attaching, Ultravox copies the tool's name and description into the agent; a mismatch
+      // means the copy is stale (the tool changed after attaching). Reattaching fixes it.
       const liveDesc = live && live.definition ? live.definition.description : null;
       const stale = !!sel && ((sel.descriptionOverride && sel.descriptionOverride !== liveDesc)
         || (sel.nameOverride && sel.nameOverride !== w.name));
@@ -143,7 +143,7 @@ function saveToolsBackup(data) {
   fs.mkdirSync(TOOLS_HISTORY, { recursive: true, mode: 0o700 });
   const file = new Date().toISOString().replace(/[:.]/g, '-') + '-tools-before.json';
   const p = path.join(TOOLS_HISTORY, file);
-  fs.writeFileSync(p, JSON.stringify(data, null, 2), { mode: 0o600 }); // внутри ключ — только владельцу
+  fs.writeFileSync(p, JSON.stringify(data, null, 2), { mode: 0o600 }); // contains the key, so owner-only
   uvx.chownToProjectOwner(p);
   return file;
 }
@@ -155,7 +155,7 @@ async function setAgentTools(uv, agentId, agent, selectedTools) {
   await uv('patch', '/agents/' + agentId, { callTemplate: ct });
 }
 
-// Синхронизация: тулзы = шаблон (+ правки установки), агентам — включённые тулзы без старых описаний.
+// Sync: tools = template (+ installation edits); agents get the enabled tools without stale descriptions.
 async function sync(env, { dryRun = false } = {}) {
   const st = await status(env);
   const plan = [];
@@ -184,13 +184,13 @@ async function sync(env, { dryRun = false } = {}) {
   });
   const log = [];
   try {
-    // 1. Отвязать наши тулзы от агентов (Ultravox не даёт менять тулз, подключённый к агенту).
+    // 1. Detach our tools from the agents (Ultravox does not allow changing a tool attached to an agent).
     for (const a of agents) {
       const cur = (a.agent.callTemplate || {}).selectedTools || [];
       const rest = cur.filter((s) => !isOurs(s, ourIds, ourNames));
       if (rest.length !== cur.length) { await setAgentTools(uv, a.agentId, a.agent, rest); log.push(`отвязаны от ${a.lang}`); }
     }
-    // 2. Создать / обновить тулзы.
+    // 2. Create / update the tools.
     const ids = {};
     for (const w of want) {
       const live = byName.get(w.name);
@@ -199,13 +199,13 @@ async function sync(env, { dryRun = false } = {}) {
         ids[w.name] = created.toolId; log.push(`создан ${w.name}`);
       } else {
         if (compare(live, w.definition, env).length) {
-          await uv('put', '/tools/' + live.toolId, { name: w.name, definition: w.definition }); // PATCH для тулзов Ultravox не поддерживает
+          await uv('put', '/tools/' + live.toolId, { name: w.name, definition: w.definition }); // Ultravox does not support PATCH for tools
           log.push(`обновлён ${w.name}`);
         }
         ids[w.name] = live.toolId;
       }
     }
-    // 3. Подключить включённые тулзы (без descriptionOverride — действует описание тулза).
+    // 3. Attach the enabled tools (no descriptionOverride, so the tool's own description applies).
     for (const a of agents) {
       const fresh = await uv('get', '/agents/' + a.agentId);
       const rest = ((fresh.callTemplate || {}).selectedTools || []).filter((s) => !isOurs(s, new Set(Object.values(ids)), ourNames));
@@ -214,12 +214,12 @@ async function sync(env, { dryRun = false } = {}) {
       log.push(`агенту ${a.lang}: ${want.filter((w) => w.enabled).map((w) => w.name).join(', ')}`);
     }
   } catch (e) {
-    // Вернуть агентам прежний набор тулзов (id обновлённых тулзов не меняются).
+    // Restore the agents' previous tool set (updated tools keep their ids).
     for (const a of agents) {
       try {
         const fresh = await uv('get', '/agents/' + a.agentId);
         await setAgentTools(uv, a.agentId, fresh, (a.agent.callTemplate || {}).selectedTools || []);
-      } catch (_) { /* сообщим ниже */ }
+      } catch (_) { /* reported below */ }
     }
     console.error('[ultravox-tools] ошибка синхронизации, агентам возвращены прежние тулзы:', e.message);
     throw uvx.httpErr(e.status || 500, `${e.message}. Агентам возвращён прежний набор тулзов; копия ${backup}`);
@@ -229,7 +229,7 @@ async function sync(env, { dryRun = false } = {}) {
   return { plan, done: true, backup, log, problems: after.problems };
 }
 
-// Правка тулза для этой установки (описание/таймаут поверх шаблона). Пустое — вернуть шаблон.
+// Per-installation tool edit (description/timeout over the template). Empty restores the template.
 function saveOverride(name, { description, timeout }) {
   if (!templates().some((t) => t.name === name)) throw uvx.httpErr(404, 'нет такого тулза в шаблонах');
   const errors = {};
@@ -249,8 +249,8 @@ function saveOverride(name, { description, timeout }) {
   return { name, overridden: Object.keys(o) };
 }
 
-// Промпт должен соответствовать включённым функциям: описывать подключённые тулзы
-// и не описывать выключенные. Промпт каждая установка правит сама — панель только предупреждает.
+// The prompt must match the enabled features: describe the attached tools
+// and not the disabled ones. Each installation edits its own prompt; the panel only warns.
 function promptWarnings(env, prompt) {
   const text = String(prompt || '');
   const out = [];

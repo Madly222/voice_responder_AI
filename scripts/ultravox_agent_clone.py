@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-ultravox_agent_clone.py — создать нового агента Ultravox копией существующего (ULTRAVOX_AGENT_ID)
-с другим промптом, голосом, языком, приветствием и сообщениями при молчании.
-Модель, тулзы, VAD, maxDuration и прочее копируются как есть.
+ultravox_agent_clone.py: create a new Ultravox agent as a copy of an existing one (ULTRAVOX_AGENT_ID)
+with a different prompt, voice, language, greeting and inactivity messages.
+Model, tools, VAD, maxDuration and the rest are copied as is.
 
-Показать, что будет создано (ничего не меняет):
+Show what would be created (changes nothing):
     python3 scripts/ultravox_agent_clone.py --name SupportBotRU --prompt-file ultravox/prompts/ru.md \
         --voice <voiceId> --language-hint ru --greeting 'Здравствуйте, ...' \
         --inactivity '45s=Могу чем-то помочь?' --inactivity '120s=Похоже, вас не слышно. ...'
-Создать: то же самое + --apply. В конце печатается ID нового агента.
+Create: the same plus --apply. The new agent's ID is printed at the end.
 
---inactivity 'ДЛИТЕЛЬНОСТЬ=ТЕКСТ' по порядку заменяет сообщения исходного агента;
-поведение (например, отбой после второго) берётся у исходного сообщения с тем же номером.
+--inactivity 'DURATION=TEXT' replaces the source agent's messages in order;
+the behaviour (e.g. hanging up after the second one) is taken from the source message with the same index.
 
-Ключ и ID исходного агента берутся из .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Только stdlib.
+The key and source agent ID come from .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Stdlib only.
 """
 import argparse
 import copy

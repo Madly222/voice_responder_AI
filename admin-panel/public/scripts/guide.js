@@ -1,4 +1,4 @@
-// -------- СПРАВКА: чек-лист первого запуска + текст guide.md --------
+// -------- GUIDE: first-run checklist + guide.md text --------
 const gEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function openTab(tab) {
@@ -36,7 +36,7 @@ async function loadGuideChecklist() {
   box.querySelectorAll('[data-open]').forEach((b) => b.onclick = () => openTab(b.dataset.open));
 }
 
-// Оглавление по заголовкам первого и второго уровня.
+// Table of contents from level 1 and 2 headings.
 function buildGuideToc() {
   const hs = [...document.querySelectorAll('#guideText h1, #guideText h2')];
   hs.forEach((h, i) => { h.id = 'g-sec-' + i; });
@@ -44,7 +44,7 @@ function buildGuideToc() {
     + gEsc(h.textContent) + '</a>').join('');
 }
 
-// Небольшой разбор Markdown: заголовки, абзацы, списки, таблицы, блоки кода, **жирный**, `код`, ссылки.
+// Minimal Markdown parser: headings, paragraphs, lists, tables, code blocks, **bold**, `code`, links.
 function renderMarkdown(md) {
   const inline = (s) => gEsc(s)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -68,7 +68,7 @@ function renderMarkdown(md) {
       const rows = [];
       for (; i < lines.length && /^\|/.test(lines[i]); i++) rows.push(lines[i]);
       const cells = (r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
-      const [head, ...rest] = rows.filter((r) => !/^\|(\s*:?-+:?\s*\|)+\s*$/.test(r));   // без строки |---|---|
+      const [head, ...rest] = rows.filter((r) => !/^\|(\s*:?-+:?\s*\|)+\s*$/.test(r));   // without the |---|---| row
       out.push('<table class="g-table"><thead><tr>' + cells(head).map((c) => '<th>' + inline(c) + '</th>').join('')
         + '</tr></thead><tbody>' + rest.map((r) => '<tr>' + cells(r).map((c) => '<td>' + inline(c) + '</td>').join('') + '</tr>').join('')
         + '</tbody></table>');

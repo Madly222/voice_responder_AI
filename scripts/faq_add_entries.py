@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-faq_add_entries.py — добавляет в faq-server/data/faq.json недостающие сценарии.
+faq_add_entries.py: adds missing scenarios to faq-server/data/faq.json.
 
-    python3 scripts/faq_add_entries.py --check     # что будет добавлено
-    python3 scripts/faq_add_entries.py --apply     # добавить (с бэкапом)
+    python3 scripts/faq_add_entries.py --check     # show what would be added
+    python3 scripts/faq_add_entries.py --apply     # add them (with a backup)
 
-Существующие записи не изменяются. После --apply нужен рестарт faq-server
-(поиск читает файл при старте).
+Existing entries are not changed. After --apply, restart faq-server
+(search reads the file at startup).
 """
 import argparse
 import json
@@ -112,7 +112,7 @@ def main():
     shutil.copy2(FAQ, backup)
     data['faq'].extend(missing)
     FAQ.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    json.loads(FAQ.read_text(encoding='utf-8'))  # проверка, что файл валиден
+    json.loads(FAQ.read_text(encoding='utf-8'))  # make sure the file is still valid JSON
     print(f'\nOK: записей стало {len(data["faq"])}, бэкап: {backup.name}')
     print('Перезапустите faq-server, чтобы поиск увидел новые записи:')
     print('  docker compose -f docker-compose-ultravox.yml restart faq-server')

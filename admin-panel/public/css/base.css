@@ -1,31 +1,31 @@
 :root {
-  color-scheme: dark;   /* системные элементы (выпадающие списки, скроллбары) — в тёмной теме */
-  /* ---- Поверхности ---- */
+  color-scheme: dark;   /* native controls (dropdowns, scrollbars) use the dark theme */
+  /* ---- Surfaces ---- */
   --bg:      #0a0d13;
   --panel:   #12161f;
   --panel-2: #181d29;
   --panel-3: #1f2530;
   --field:   #0c0f16;
 
-  /* ---- Границы ---- */
+  /* ---- Borders ---- */
   --line:        #212836;
   --line-strong: #2c3444;
   --line-hover:  #3a4356;
 
-  /* ---- Текст ---- */
+  /* ---- Text ---- */
   --tx:       #eef1f7;
   --mut:      #bcc6da;
   --mut-2:    #909bae;
   --disabled: #4a5165;
 
-  /* ---- Акцент ---- */
+  /* ---- Accent ---- */
   --acc:        #4d7fff;
   --acc-hover:  #3f6bee;
   --acc-active: #345bd1;
   --acc-soft:   rgba(77, 127, 255, 0.14);
   --acc-border: rgba(77, 127, 255, 0.38);
 
-  /* ---- Статусы ---- */
+  /* ---- Statuses ---- */
   --ok:      #3fb950;
   --ok-soft: rgba(63, 185, 80, 0.13);
 
@@ -33,7 +33,7 @@
   --bad-soft:   rgba(248, 81, 73, 0.13);
   --bad-border: rgba(248, 81, 73, 0.32);
 
-  /* ---- Радиусы и тени ---- */
+  /* ---- Radii and shadows ---- */
   --r-sm: 7px; --r-md: 10px; --r-lg: 14px;
 
   --sh-sm: 0 1px 2px rgba(0,0,0,.24);
@@ -41,13 +41,13 @@
   --sh-lg: 0 20px 40px -12px rgba(0,0,0,.5), 0 4px 12px -4px rgba(0,0,0,.35);
   --sh-focus: 0 0 0 3px var(--acc-soft);
 
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;  /* без загрузки из интернета: Inter — если установлен, иначе системный */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;  /* nothing loaded from the internet: Inter if installed, otherwise the system font */
   --font-mono: 'JetBrains Mono', Consolas, 'SF Mono', Menlo, monospace;
 
   --ease: 160ms cubic-bezier(.4,0,.2,1);
 
-  /* ---- Мелочи, зависящие от темы ---- */
-  --acc-text:   #a9c1ff;                 /* акцентный текст (активная вкладка, заголовки справки) */
+  /* ---- Theme-dependent details ---- */
+  --acc-text:   #a9c1ff;                 /* accent text (active tab, guide headings) */
   --hover-soft: rgba(255,255,255,.02);
   --chip-bg:    rgba(255,255,255,.05);
   --header-bg:  rgba(18, 22, 31, 0.85);
@@ -55,7 +55,7 @@
   --bad-text:   #ff8d86;
 }
 
-/* ---- Светлая тема (переключатель в шапке, scripts/utils.js) ---- */
+/* ---- Light theme (toggle in the header, scripts/utils.js) ---- */
 :root[data-theme="light"] {
   color-scheme: light;
   --bg:      #f4f6fa;
@@ -98,7 +98,7 @@
 }
 .theme-toggle { font-size:16px; line-height:1; padding:7px 10px; margin-left:6px; }
 
-/* Сброс */
+/* Reset */
 * { box-sizing:border-box; }
 html { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 
@@ -112,7 +112,7 @@ body {
 
 a { color:var(--acc); }
 
-/* Шапка и вкладки */
+/* Header and tabs */
 header {
   position: sticky;
   top: 0;
@@ -143,7 +143,7 @@ header h1 { font-size:18px; margin:0; font-weight:600; }
 .tabs button:hover { background:var(--panel-2); color:var(--tx); }
 .tabs button.active { color:var(--acc-text); background:var(--acc-soft); border-color:var(--acc-border); font-weight:600; }
 
-/* Раскладка и карточки */
+/* Layout and cards */
 main { padding:28px; max-width:1400px; width:100%; margin:0 auto; }
 
 .card {
@@ -157,7 +157,7 @@ main { padding:28px; max-width:1400px; width:100%; margin:0 auto; }
 
 .bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
 
-/* Поля ввода */
+/* Inputs */
 .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
 .row:last-child { border-bottom:none; }
 .row label { flex:0 0 240px; color:var(--tx); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
@@ -190,7 +190,7 @@ select:hover { background-color:var(--panel-3); border-color:var(--line-hover); 
 select:active { transform:translateY(1px); box-shadow:var(--sh-sm); }
 select option { background-color:var(--panel-2); color:var(--tx); text-align:center; }
 
-/* Кастомные чекбоксы */
+/* Custom checkboxes */
 input[type="checkbox"] {
   appearance:none; -webkit-appearance:none;
   width:16px; height:16px; border-radius:5px;
@@ -208,7 +208,7 @@ input[type="checkbox"]:checked::after {
   border:solid #fff; border-width:0 2px 2px 0; transform:rotate(45deg);
 }
 
-/* Кнопки */
+/* Buttons */
 button.act {
   background:var(--acc); border:1px solid transparent; color:#fff;
   padding:9px 18px; border-radius:var(--r-md); cursor:pointer;
@@ -231,7 +231,7 @@ button.ghost:disabled { opacity:.55; cursor:not-allowed; }
 
 button:focus-visible { outline:none; box-shadow:var(--sh-focus); border-radius:var(--r-sm); }
 
-/* Статусы и списки */
+/* Statuses and lists */
 .grp { color:var(--mut-2); font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin:16px 0 8px; }
 
 .dot { width:8px; height:8px; border-radius:50%; flex:0 0 8px; background:var(--disabled); }
@@ -245,7 +245,7 @@ button:focus-visible { outline:none; box-shadow:var(--sh-focus); border-radius:v
 .hitem .det { color:var(--mut); font-size:13px; }
 .bad-txt { color:var(--bad); }
 
-/* Текстовые поля и скроллбары */
+/* Text areas and scrollbars */
 body textarea {
   width:100%; height:52vh; background:var(--field); border:1px solid var(--line); color:var(--tx);
   border-radius:var(--r-md); padding:12px 14px; font-family:inherit; font-size:14px; line-height:1.45;
@@ -264,7 +264,7 @@ textarea { scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent;
 ::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:4px; }
 ::-webkit-scrollbar-thumb:hover { background:var(--line-hover); }
 
-/* Тост-уведомления */
+/* Toast notifications */
 .toast {
   position:fixed; bottom:20px; right:20px;
   background:var(--panel-3); border:1px solid var(--line);
@@ -277,7 +277,7 @@ textarea { scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent;
 
 small.hint { color:var(--mut); }
 
-/* Подсказки (иконка "?") */
+/* Tooltips ("?" icon) */
 .help {
   position:relative; display:inline-flex; align-items:center; justify-content:center;
   width:16px; height:16px; border-radius:50%; border:1px solid var(--mut); color:var(--mut);
@@ -294,7 +294,7 @@ small.hint { color:var(--mut); }
 .help:hover .bubble { visibility:visible; opacity:1; }
 .help .bubble b { color:var(--acc); }
 
-/* -------- вкладка .env: группы и описания -------- */
+/* -------- .env tab: groups and descriptions -------- */
 .env-block { margin-bottom:18px; }
 .env-grp { margin-top:8px; }
 .env-sub { margin:10px 0 2px; color:var(--mut); font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
@@ -308,7 +308,7 @@ small.hint { color:var(--mut); }
 .env-err:empty { display:none; }
 .env-row.has-err input, .env-row.has-err select { border-color:var(--bad); box-shadow:0 0 0 3px var(--bad-soft); }
 
-/* -------- вкладка Ultravox -------- */
+/* -------- Ultravox tab -------- */
 .uv-langs { display:flex; gap:6px; margin-right:auto; }
 .uv-voice { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .uv-voice select { min-width:320px; text-align:left; }
@@ -326,7 +326,7 @@ small.hint { color:var(--mut); }
 .uv-hist { display:flex; gap:12px; align-items:center; padding:4px 0; }
 #customDialogMessage { white-space:pre-wrap; max-height:60vh; overflow:auto; }
 
-/* -------- свои выпадающие списки (scripts/utils.js → enhanceSelect) -------- */
+/* -------- custom dropdowns (scripts/utils.js -> enhanceSelect) -------- */
 select.csel-native { display:none !important; }
 .csel { position:relative; display:inline-block; min-width:180px; max-width:100%; vertical-align:middle; }
 .csel-btn {
@@ -363,7 +363,7 @@ select.csel-native { display:none !important; }
 .uv-tool-body { padding:10px 0 0 4px; }
 .ok-txt { color:var(--ok); }
 
-/* -------- вкладка Справка -------- */
+/* -------- Guide tab -------- */
 .g-item { display:flex; gap:12px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); }
 .g-item:last-child { border-bottom:none; }
 .g-title { flex:0 0 300px; font-weight:600; }

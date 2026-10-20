@@ -1,4 +1,4 @@
-// -------- МОНИТОРИНГ --------
+// -------- MONITORING --------
 let lastHealth = {};
 
 const CONTAINERS = ['faq-server','network-diag','avr-asterisk','avr-sts-ultravox','avr-sts-ultravox-ru','avr-core','avr-core-ru','avr-ami','admin-panel'];
@@ -103,7 +103,7 @@ async function loadHealth() {
   }
 }
 
-// Журнал действий в панели: кто, откуда, когда, что (значения не пишутся).
+// Panel audit log: who, from where, when, what (values are not logged).
 async function loadAudit() {
   const box = $('#auditList'); if (!box) return;
   try {

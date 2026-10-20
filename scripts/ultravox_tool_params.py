@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
-ultravox_tool_params.py — проверить и поменять тулз в Ultravox: динамические параметры и таймаут.
+ultravox_tool_params.py: inspect and change an Ultravox tool: dynamic parameters and timeout.
 
-Проверка (ничего не меняет):
+Check (changes nothing):
     python3 scripts/ultravox_tool_params.py --check updateCall
 
-Добавить параметры (по умолчанию request_summary и resolution для updateCall):
+Add parameters (request_summary and resolution for updateCall by default):
     python3 scripts/ultravox_tool_params.py --apply updateCall
 
-Свой параметр:
+Custom parameter:
     python3 scripts/ultravox_tool_params.py --apply updateCall \
         --param 'note:string:Any extra note about the call'
 
-Таймаут (остальное в тулзе не меняется):
+Timeout (the rest of the tool stays unchanged):
     python3 scripts/ultravox_tool_params.py --check diagnoseClient --timeout 15s
     python3 scripts/ultravox_tool_params.py --apply diagnoseClient --timeout 15s
 
-Если тулз подключён к агенту и Ultravox блокирует изменение, скрипт сам отвяжет тулз,
-применит правку и привяжет обратно (ключ --no-detach отключает это поведение).
+If the tool is attached to an agent and Ultravox blocks the change, the script detaches the tool,
+applies the change and attaches it back (--no-detach turns this off).
 
-Ключ и ID агента берутся из .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Только stdlib.
+The key and agent ID come from .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Stdlib only.
 """
 import argparse
 import json
@@ -103,7 +103,7 @@ def agent_tools(key, agent_id):
 
 
 def set_agent_tools(key, agent_id, agent, tools):
-    # весь callTemplate целиком: меняем только selectedTools, остальное как было
+    # send the whole callTemplate: only selectedTools changes, the rest stays as it was
     ct = {k: v for k, v in (agent.get('callTemplate') or {}).items() if k not in ('created', 'updated')}
     ct['selectedTools'] = tools
     status, body = req('PATCH', f'/agents/{agent_id}', key, {'callTemplate': ct})
@@ -126,7 +126,7 @@ def main():
 
     env = load_env(a.env)
     key = env.get('ULTRAVOX_API_KEY')
-    # тулзы общие для RO и RU — при конфликте отвязываем от обоих
+    # tools are shared by RO and RU, so on a conflict detach from both
     agent_ids = [x for x in (env.get('ULTRAVOX_AGENT_ID'), env.get('ULTRAVOX_AGENT_ID_RU')) if x]
     if not key:
         sys.exit('В .env нет ULTRAVOX_API_KEY')
@@ -197,7 +197,7 @@ def main():
                     or sel.get('toolId') == tool_id
                     or sel.get('nameOverride') == tool.get('name'))
 
-        saved = []  # (id, agent, tools_before) — у кого тулз был и отвязан
+        saved = []  # (id, agent, tools_before) for agents the tool was detached from
         for aid in agent_ids:
             agent, tools_before = agent_tools(key, aid)
             if tools_before is None:

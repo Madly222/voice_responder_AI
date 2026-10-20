@@ -1,6 +1,6 @@
 'use strict';
-// Вкладка «Справка»: текст (guide.md) и чек-лист первого запуска с живыми отметками.
-// Текст берётся из папки проекта (правки видны без пересборки панели), иначе — из образа.
+// Guide tab: the text (guide.md) and a first-run checklist with live status.
+// The text is read from the project folder (edits show up without rebuilding the panel), falling back to the image.
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
@@ -33,7 +33,7 @@ function callsCount() {
 
 const off = (v) => ['', 'none'].includes(String(v || '').toLowerCase());
 
-// Пункты по порядку настройки. ok: true — готово, false — нужно сделать, null — выключено / по желанию.
+// Items in setup order. ok: true = done, false = to do, null = disabled / optional.
 async function status(env) {
   const health = await runAll(env).catch(() => []);
   const h = (id) => health.find((x) => x.id === id) || { ok: false, detail: 'проверка не выполнена' };

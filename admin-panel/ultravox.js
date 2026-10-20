@@ -1,12 +1,12 @@
 'use strict';
-// Агенты Ultravox из панели: чтение, правка, история и откат.
-// Живая конфигурация — в Ultravox; перед каждой записью панель сохраняет копию агента
-// в рабочую папку установки (вне git): <PROJECT_DIR>/instance/ultravox/history/<lang>/.
+// Ultravox agents from the panel: read, edit, history and rollback.
+// The live configuration is in Ultravox; before every write the panel saves a copy of the agent
+// to the installation's working folder (outside git): <PROJECT_DIR>/instance/ultravox/history/<lang>/.
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 
-// Языки = агенты. ID агентов — в .env.
+// Languages = agents. Agent IDs are in .env.
 const LANGS = [
   { lang: 'ro', label: 'Румынский (RO)', envKey: 'ULTRAVOX_AGENT_ID' },
   { lang: 'ru', label: 'Русский (RU)', envKey: 'ULTRAVOX_AGENT_ID_RU' },
@@ -45,7 +45,7 @@ function setAgentSpeaker(ct, patch) {
   ct.firstSpeakerSettings = { ...(ct.firstSpeakerSettings || {}), agent: { ...agentOf(ct), ...patch } };
 }
 
-// Редактируемые поля: как читать из агента и как записать в callTemplate.
+// Editable fields: how to read them from the agent and write them to callTemplate.
 const FIELDS = {
   name:                    { get: (a) => a.name || '' },
   systemPrompt:            { get: (a, ct) => ct.systemPrompt || '', set: (ct, v) => { ct.systemPrompt = v; } },
@@ -106,7 +106,7 @@ function validate(c, models) {
   return errors;
 }
 
-// Пустые значения VAD не шлём (значение Ultravox по умолчанию), порог — числом.
+// Empty VAD values are not sent (Ultravox default applies); the threshold is sent as a number.
 function normalize(changes) {
   const c = {};
   for (const [k, v] of Object.entries(changes || {})) if (k in FIELDS) c[k] = v;
@@ -127,14 +127,13 @@ function normalize(changes) {
   return c;
 }
 
-// Только реально изменённые поля.
 function diff(before, changes) {
   const out = {};
   for (const [k, v] of Object.entries(changes)) if (JSON.stringify(before[k]) !== JSON.stringify(v)) out[k] = v;
   return out;
 }
 
-// Панель работает от root — файлы и папки истории отдаём владельцу папки проекта.
+// The panel runs as root, so history files and folders are handed to the project folder owner.
 function chownToProjectOwner(p) {
   try {
     const st = fs.statSync(PROJECT_DIR);
@@ -176,9 +175,9 @@ async function voices(env) {
     for (const v of d.results || []) list.push({
       voiceId: v.voiceId, name: v.name, language: v.primaryLanguage || '', languageLabel: v.languageLabel || '',
       provider: v.provider || '', description: (v.description || '').slice(0, 160),
-      // EXTERNAL — голос требует свой ключ провайдера (ElevenLabs и т.п.) в аккаунте Ultravox
+      // EXTERNAL: the voice needs the provider's own key (ElevenLabs etc.) in the Ultravox account
       external: v.billingStyle === 'VOICE_BILLING_STYLE_EXTERNAL',
-      // образцы с API Ultravox требуют ключ — отдаём через панель; прочие (публичные) — как есть
+      // samples hosted on the Ultravox API need the key, so they are proxied through the panel; public ones are used as is
       previewUrl: !v.previewUrl ? '' : (isUltravoxUrl(env, v.previewUrl) ? `/api/ultravox/voices/${v.voiceId}/preview` : v.previewUrl),
       _preview: v.previewUrl || '',
     });
@@ -196,7 +195,7 @@ function isUltravoxUrl(env, u) {
   } catch (_) { return false; }
 }
 
-// Образец голоса с API Ultravox: ключ уходит только на хост API Ultravox.
+// Voice sample from the Ultravox API: the key is only ever sent to the Ultravox API host.
 async function voicePreview(env, voiceId) {
   const v = (await voices(env)).find((x) => x.voiceId === voiceId);
   if (!v || !v._preview) throw httpErr(404, 'нет образца');
@@ -224,7 +223,7 @@ async function listAgents(env) {
     const t = await uv('get', '/tools?pageSize=100');
     const names = new Map((t.results || []).map((x) => [x.toolId, x.name]));
     out.forEach((a) => { if (a.tools) a.tools = a.tools.map((id) => ({ toolId: id, name: names.get(id) || id })); });
-  } catch (_) { /* без имён тулзов — покажем id */ }
+  } catch (_) { /* without tool names, show ids */ }
   return out;
 }
 
@@ -239,7 +238,7 @@ function describeChange(k, a, b) {
   return { field: k, before: s(a), after: s(b) };
 }
 
-// Применить изменения к агенту: копия «до» → PATCH всего callTemplate → проверка → копия «после».
+// Apply changes to the agent: "before" copy -> PATCH the whole callTemplate -> verify -> "after" copy.
 async function apply(env, lang, rawChanges, { dryRun = false } = {}) {
   const info = langInfo(env, lang);
   const uv = client(env);
@@ -288,15 +287,15 @@ function readHistory(lang, file) {
   return viewOf(JSON.parse(fs.readFileSync(historyFile(lang, file), 'utf8')));
 }
 
-// Откат: поля из копии применяются как обычная правка (со своей копией «до»).
+// Rollback: fields from the copy are applied as a normal edit (with its own "before" copy).
 async function restore(env, lang, file, opts) {
   return apply(env, lang, readHistory(lang, file), opts);
 }
 
-// ---- Создание агента из образца (первый запуск) ----
-// Агент создаётся в аккаунте Ultravox, которому принадлежит ULTRAVOX_API_KEY (оплата — там же).
-// Промпт — ultravox/prompts/<lang>.md с подстановкой {COMPANY_NAME}; остальное — значения по умолчанию,
-// их потом можно поменять на вкладке. Тулзы подключает «Синхронизировать» (ultravoxTools.js).
+// ---- Creating an agent from the template (first run) ----
+// The agent is created in the Ultravox account that owns ULTRAVOX_API_KEY (billed there too).
+// The prompt is ultravox/prompts/<lang>.md with {COMPANY_NAME} substituted; everything else uses defaults
+// that can be changed later in the tab. Tools are attached by "Sync" (ultravoxTools.js).
 const SAMPLE = {
   ro: {
     greeting: 'Bună ziua, vă salută asistentul virtual {COMPANY_NAME}, un sistem de inteligență artificială. Cu ce vă pot ajuta?',
@@ -326,7 +325,7 @@ async function createAgent(env, lang, { name, writeEnv } = {}) {
 
   const list = await models(env).catch(() => []);
   const model = list.includes(PREFERRED_MODEL) ? PREFERRED_MODEL : (list[list.length - 1] || PREFERRED_MODEL);
-  // только голоса, включённые в оплату Ultravox (для «внешних» нужен свой ключ провайдера)
+  // only voices included in the Ultravox plan ("external" ones need the provider's own key)
   const voice = (await voices(env)).find((v) => !v.external && (v.language || '').toLowerCase().startsWith(lang));
   if (!voice) throw httpErr(400, `в Ultravox не нашлось голоса для языка ${lang}, включённого в оплату`);
   const agentName = name || ((company.replace(/[^A-Za-z0-9]/g, '') || 'Support') + lang.toUpperCase()).slice(0, 64);
@@ -358,6 +357,6 @@ async function deleteAgent(env, agentId) {
 module.exports = {
   LANGS, END_BEHAVIORS, listAgents, apply, history, readHistory, restore, voices, models, voicePreview,
   createAgent, deleteAgent,
-  // для ultravoxTools.js
+  // used by ultravoxTools.js
   client, httpErr, chownToProjectOwner, PROJECT_DIR, INSTANCE_DIR, HISTORY_DIR,
 };

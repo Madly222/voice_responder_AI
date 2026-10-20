@@ -1,4 +1,4 @@
-# секреты
+# secrets
 .env
 .env.*
 !.env.example
@@ -7,16 +7,16 @@
 keys/
 .ssh/
 
-# конфиги Asterisk с паролями (в репозитории только *.example)
+# Asterisk configs with passwords (only *.example is committed)
 asterisk/conf/pjsip.conf
 asterisk/conf/manager.conf
 asterisk/conf/ari.conf
 
-# персональные данные
+# personal data
 faq-server/data/calls.txt
 faq-server/data/panel-settings.json
 
-# артефакты
+# build artifacts
 node_modules/
 .venv/
 __pycache__/
@@ -25,5 +25,5 @@ __pycache__/
 *.csv
 *.log
 
-# рабочая копия установки (история агентов Ultravox и т.п.) — у каждой установки своя
+# per-installation working data (Ultravox agent history etc.)
 instance/

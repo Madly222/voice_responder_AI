@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# install.sh — подготовка сервера для avr-infra (один раз, с правами администратора).
-# Делает только то, что требует root. Всё остальное настраивается в панели (вкладка «Справка»).
+# install.sh: one-time server preparation for avr-infra (run as administrator).
+# Does only what needs root. Everything else is configured in the admin panel (Guide tab).
 #
-#   sudo ./install.sh                         # Docker, файлы настроек, firewall, запуск сервисов
+#   sudo ./install.sh                         # Docker, config files, firewall, start services
 #   sudo ./install.sh --domain avr.example.com --dns-mode cloudflare [--port 8443]
-#                                             # + публичный вход для тулзов (nginx + сертификат)
-#   ./install.sh --dry-run [...]              # только показать, что будет сделано (без sudo, ничего не меняет)
+#                                             # + public entry point for the tools (nginx + certificate)
+#   ./install.sh --dry-run [...]              # only show what would be done (no sudo, changes nothing)
 #
-# Повторный запуск безопасен: сделанные шаги пропускаются, существующие файлы и пароли не трогаются.
-# Ключи --no-firewall, --no-start — пропустить firewall / запуск сервисов.
+# Safe to re-run: completed steps are skipped, existing files and passwords are left alone.
+# --no-firewall, --no-start skip the firewall / service start.
 set -euo pipefail
 
 DRY=0; DOMAIN=""; DNS_MODE=""; TOOLS_PORT=8443; FIREWALL=1; START=1
@@ -36,17 +36,17 @@ step() { echo; echo "=== $* ==="; }
 ok()   { echo "  ✓ $*"; }
 todo() { echo "  → $*"; }
 run()  { if [ "$DRY" = 1 ]; then echo "  [dry-run] $*"; else eval "$@"; fi; }
-# Случайный пароль из 16 букв и цифр. /dev/urandom есть везде (openssl — не на каждой минимальной
-# системе); обрезка подстрокой, а не head — иначе SIGPIPE ломает set -o pipefail.
+# Random 16-character alphanumeric password. /dev/urandom exists everywhere (openssl is missing on some minimal
+# systems); cut with a substring, not head, because SIGPIPE would break set -o pipefail.
 randpw() { local p; p="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"; echo "${p:0:16}"; }
 env_get() { grep -E "^$1=" "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//'; }
-# Записать значение в .env (только если ключ пуст или отсутствует — чужие значения не трогаем).
+# Write a value to .env only if the key is empty or missing, never overwriting existing values.
 env_set_if_empty() {
   local k="$1" v="$2"
   if [ -n "$(env_get "$k")" ]; then ok "$k уже задан — не трогаю"; return; fi
   if [ "$DRY" = 1 ]; then echo "  [dry-run] $k=<значение> в .env"; return; fi
   if grep -qE "^$k=" "$ENV"; then
-    # значение через окружение — awk не трогает обратные косые; cat > сохраняет права и владельца файла
+    # value passed via the environment so awk leaves backslashes alone; cat > keeps the file's mode and owner
     ( umask 077
       K="$k" V="$v" awk '!done && index($0, ENVIRON["K"] "=") == 1 { print ENVIRON["K"] "=" ENVIRON["V"]; done = 1; next } { print }' \
         "$ENV" > "$ENV.tmp" && cat "$ENV.tmp" > "$ENV" && rm -f "$ENV.tmp" )
@@ -95,8 +95,8 @@ if [ -f "$ENV" ] || [ "$DRY" = 1 ]; then
     env_set_if_empty PANEL_PASS "$NEW_PANEL_PASS"
   else ok "пароль панели уже задан — не трогаю"; fi
 fi
-# Конфиги Asterisk с паролями — из образцов, CHANGE_ME заменяется случайным паролем.
-# Пароль AMI (manager.conf) должен совпадать с AMI_PASSWORD в .env: берём из .env или создаём и пишем туда.
+# Asterisk configs with passwords are created from the examples, CHANGE_ME replaced with a random password.
+# The AMI password (manager.conf) must match AMI_PASSWORD in .env: take it from .env, or generate it and write it there.
 for f in pjsip manager ari; do
   c="$PROJECT/asterisk/conf/$f.conf"
   if [ -f "$c" ]; then ok "asterisk/conf/$f.conf есть"; continue; fi

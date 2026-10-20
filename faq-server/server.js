@@ -9,7 +9,7 @@ app.use(express.json());
 // Static files for sounds
 app.use('/sounds', express.static(path.join(__dirname, 'public/sounds')));
 
-// FAQ читает и перечитывает tools/faq.js (при изменении файла, P-03) — здесь только счётчик для /health.
+// tools/faq.js loads and reloads the FAQ (on file change, P-03); only the count for /health is used here.
 const { faqCount } = require('./tools/faq');
 const tools = require('./tools');
 const telegram = require('./tools/telegram-webhook');
@@ -30,8 +30,8 @@ app.post('/tool/:name', async (req, res) => {
   const { name } = req.params;
   if (!tools[name]) return res.status(404).json({ error: `Tool "${name}" not found` });
   try {
-    // P-02: ID звонка Ultravox (автоматический параметр тулза) → наш звонок.
-    // Без него (Asterisk, Test tool) всё как раньше — последний открытый звонок.
+    // P-02: Ultravox call ID (automatic tool parameter) -> our call.
+    // Without it (Asterisk, Test tool) the last open call is used, as before.
     const body = req.body || {};
     const uvCallId = String(body.uv_call_id || req.get('X-Uv-Call-Id') || '').trim() || null;
     delete body.uv_call_id;
@@ -48,8 +48,8 @@ app.post('/tool/:name', async (req, res) => {
       const snapshot = cd._call;
       delete cd._call;
 
-      // Суть обращения обязательна. Если агент не прислал request_summary — берём сводку Ultravox
-      // (готова через несколько секунд после конца звонка); нет сводки — фразы из стенограммы.
+      // The request summary is mandatory. If the agent sent no request_summary, use the Ultravox summary
+      // (ready a few seconds after the call ends); with no summary, use phrases from the transcript.
       const enrich = async () => {
         if (!snapshot) return cd;
         if (snapshot.uv_call_id) {
@@ -58,8 +58,8 @@ app.post('/tool/:name', async (req, res) => {
             const info = await transcript.getCallInfo(snapshot.uv_call_id);
             if (info && info.shortSummary) {
               console.log('[Server] Суть обращения — из сводки Ultravox');
-              // Заметка агента бывает ранней и неполной — сводка Ultravox идёт рядом с ней.
-              // Без заметки — ещё и распознанная речь: по ней человек проверит толкование агента.
+              // The agent's note can be early and incomplete, so the Ultravox summary goes next to it.
+              // Without a note, add the recognised speech too, so a human can check the agent's interpretation.
               const utt = snapshot.request_summary ? []
                 : await transcript.getUserUtterances(cd.start_time, cd.end_time, snapshot.lang, snapshot.uv_call_id).catch(() => []);
               return Object.assign(cd, callLogger.rebuildChatbotData(snapshot, utt, info.shortSummary));
@@ -68,7 +68,7 @@ app.post('/tool/:name', async (req, res) => {
           console.warn('[Server] Сводки Ultravox нет за 20 с — беру фразы из стенограммы');
         }
         if (cd.user_request || snapshot.request_summary) return cd;
-        for (const waitMs of [0, 4000]) {   // стенограмма появляется с небольшой задержкой
+        for (const waitMs of [0, 4000]) {   // the transcript appears with a short delay
           if (waitMs) await new Promise((r) => setTimeout(r, waitMs));
           const utt = await transcript.getUserUtterances(cd.start_time, cd.end_time, snapshot.lang, snapshot.uv_call_id);
           if (utt.length) {
