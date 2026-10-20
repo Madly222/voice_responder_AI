@@ -114,8 +114,6 @@ def main():
     FAQ.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     json.loads(FAQ.read_text(encoding='utf-8'))  # make sure the file is still valid JSON
     print(f'\nOK: записей стало {len(data["faq"])}, бэкап: {backup.name}')
-    print('Перезапустите faq-server, чтобы поиск увидел новые записи:')
-    print('  docker compose -f docker-compose-ultravox.yml restart faq-server')
 
 
 if __name__ == '__main__':
