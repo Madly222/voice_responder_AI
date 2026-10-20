@@ -269,7 +269,6 @@ $DC logs -f faq-server
 $DC up -d --build faq-server               # после правки кода faq-server
 $DC up -d --build network-diag             # после правки кода network-diag
 $DC up -d faq-server network-diag          # после правки .env (или «Применить» в панели)
-$DC restart faq-server                     # после правки faq.json (пока не исправлен P-03)
 docker exec avr-asterisk asterisk -rx "pjsip reload"
 docker exec avr-asterisk asterisk -rx "dialplan reload"
 sudo systemctl reload nginx                # после правки конфига nginx
