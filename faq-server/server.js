@@ -6,7 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Static files for sounds
 app.use('/sounds', express.static(path.join(__dirname, 'public/sounds')));
 
 // tools/faq.js loads and reloads the FAQ (on file change, P-03); only the count for /health is used here.

@@ -144,7 +144,6 @@ module.exports = {
           return response.data;
         }
 
-        // Auto-save diagnostics to call log
         if (response.data && response.data.data) {
           const diagData = response.data.data;
           try {
@@ -164,7 +163,6 @@ module.exports = {
       } catch (error) {
         console.error('[diagnoseClient] Error:', error.message);
 
-        // Determine error type
         let errorMsg;
         if (error.code === 'ECONNREFUSED') {
           errorMsg = 'Cannot connect to network-diag service';
@@ -176,7 +174,6 @@ module.exports = {
           errorMsg = `Diagnostics error: ${error.message}`;
         }
 
-        // Save error to call log
         try {
           callLogger.updateCall.execute({
             call_id: 'latest',
@@ -199,5 +196,5 @@ module.exports = {
   startCall: callLogger.startCall,
   endCall: callLogger.endCall,
   getCalls: callLogger.getCalls,
-  checkRecentCall: callLogger.checkRecentCall  // <-- NEW
+  checkRecentCall: callLogger.checkRecentCall
 };

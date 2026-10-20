@@ -49,7 +49,6 @@ def parse_line_generic(line):
 
 
 class MACParser:
-    """MAC address parser with support for ZTE GPON and Cisco switches"""
     
     def normalize_mac(self, mac: str) -> str:
         """
@@ -64,13 +63,11 @@ class MACParser:
         Raises:
             ValueError: If MAC address is invalid
         """
-        # Remove all separators
         mac_clean = re.sub(r'[.:\-]', '', mac.lower())
         
         if len(mac_clean) != 12:
             raise ValueError(f"Invalid MAC length: {mac}")
         
-        # Convert to Cisco/ZTE format
         return f"{mac_clean[0:4]}.{mac_clean[4:8]}.{mac_clean[8:12]}"
     
     def parse_zte_gpon(self, output: str, mac_address: str, device_name: str) -> Dict:
@@ -92,7 +89,6 @@ class MACParser:
         print(f"[MACParser] Parsing ZTE GPON output for {mac_address}")
         
         try:
-            # Normalize target MAC
             mac_normalized = self.normalize_mac(mac_address)
             print(f"[MACParser] Normalized MAC: {mac_normalized}")
         except ValueError as e:
@@ -111,19 +107,17 @@ class MACParser:
         zte_pattern = r'([0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4})\s+(\d+)\s+\w+\s+(\S+)'
         
         for line_num, line in enumerate(output.split('\n'), 1):
-            # Search for MAC in line
             if mac_normalized not in line.lower():
                 continue
             
             print(f"[MACParser] Found MAC in line {line_num}: {line.strip()}")
             
-            # Apply regex
             match = re.search(zte_pattern, line.lower())
             if match:
                 try:
-                    found_mac = match.group(1)  # MAC address
-                    vlan = int(match.group(2))  # VLAN
-                    port = match.group(3)       # Port
+                    found_mac = match.group(1)
+                    vlan = int(match.group(2))
+                    port = match.group(3)
                     
                     print(f"[MACParser] Parsed successfully:")
                     print(f"  MAC: {found_mac}")
@@ -293,9 +287,7 @@ class MACParser:
         elif device_type.lower() == 'cisco':
             return self.parse_cisco(output, mac_address, device_name)
         else:
-            # Default to ZTE format
             print(f"[MACParser] Unknown device type '{device_type}', trying ZTE format")
             return self.parse_zte_gpon(output, mac_address, device_name)
 
-# Create global instance
 mac_parser = MACParser()
