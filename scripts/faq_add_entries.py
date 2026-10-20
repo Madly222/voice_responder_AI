@@ -5,8 +5,8 @@ faq_add_entries.py: adds missing scenarios to faq-server/data/faq.json.
     python3 scripts/faq_add_entries.py --check     # show what would be added
     python3 scripts/faq_add_entries.py --apply     # add them (with a backup)
 
-Existing entries are not changed. After --apply, restart faq-server
-(search reads the file at startup).
+Existing entries are not changed. No restart is needed after --apply:
+faq-server picks up the changed file on the next search (P-03).
 """
 import argparse
 import json

@@ -7,8 +7,8 @@ function read(faqPath) {
   return JSON.parse(fs.readFileSync(faqPath, 'utf8'));
 }
 
-// Validates the structure before writing so bad data cannot corrupt faq.json
-// (the live faq-server reads it via fs.watch, and broken JSON would break search).
+// Validates the structure before writing so bad data never reaches faq.json
+// (the live faq-server reloads it on mtime change and would keep serving the old FAQ).
 function validate(data) {
   if (!data || !Array.isArray(data.faq)) throw new Error('ожидается { faq: [...] }');
   const ids = new Set();
