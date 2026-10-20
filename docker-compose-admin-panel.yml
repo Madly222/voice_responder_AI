@@ -1,10 +1,10 @@
-# Overlay для admin-panel. Подключается вторым файлом:
+# Overlay for admin-panel, added as a second compose file:
 #   docker compose -f docker-compose-ultravox.yml -f docker-compose-admin-panel.yml up -d admin-panel
-# Так основной compose не редактируется.
+# This way the main compose file stays untouched.
 #
-# Доступ по сети: PANEL_BIND в .env задаёт интерфейс привязки.
-#   PANEL_BIND=127.0.0.1    → только с хоста (по умолчанию, безопасно)
-#   PANEL_BIND=0.0.0.0      → доступ из LAN (порт — PANEL_PORT)
+# Network access: PANEL_BIND in .env sets the bind interface.
+#   PANEL_BIND=127.0.0.1    -> host only (default, safe)
+#   PANEL_BIND=0.0.0.0      -> reachable from the LAN (port = PANEL_PORT)
 services:
   admin-panel:
     build: ./admin-panel
@@ -28,7 +28,7 @@ services:
       - "${PANEL_BIND:-127.0.0.1}:${PANEL_PORT:-8090}:8090"
     volumes:
       - ./.env:/data/.env
-      # копии .env перед сохранением из панели — вне проекта (последние 30)
+      # .env backups taken before each save from the panel, kept outside the project (last 30)
       - ${PROJECT_DIR:-/home/user/avr-infra}-backups:/data/backups
       - ./asterisk/conf:/data/asterisk/conf
       - ./faq-server/data:/data/faqdata

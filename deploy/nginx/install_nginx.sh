@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# install_nginx.sh — nginx + Let's Encrypt (DNS-проверка) для тулзов avr-infra на 192.0.2.10
+# install_nginx.sh: nginx + Let's Encrypt (DNS challenge) for the avr-infra tools on 192.0.2.10
 #
-#   sudo ./deploy/nginx/install_nginx.sh <домен> <режим> [порт]
-#     режим: rfc2136    — автопродление через свой DNS (BIND и др., TSIG), нужен /root/.secrets/rfc2136.ini
-#            cloudflare — автопродление через API Cloudflare (нужен /root/.secrets/cloudflare.ini)
-#            manual     — TXT-запись вручную (продлевать руками раз в 90 дней!)
-#     порт:  по умолчанию 8443
+#   sudo ./deploy/nginx/install_nginx.sh <domain> <mode> [port]
+#     mode:  rfc2136    - auto-renewal via your own DNS (BIND etc., TSIG), needs /root/.secrets/rfc2136.ini
+#            cloudflare - auto-renewal via the Cloudflare API (needs /root/.secrets/cloudflare.ini)
+#            manual     - TXT record by hand (renew manually every 90 days!)
+#     port:  defaults to 8443
 set -euo pipefail
 
 DOMAIN="${1:?Укажите домен, например avr.example.com}"

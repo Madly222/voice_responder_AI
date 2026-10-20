@@ -1,11 +1,11 @@
 'use strict';
-// Описание настроек для панели берётся из .env.example — это единственный источник:
-//   # ---------- Группа ----------      заголовок группы
-//   # --- Подгруппа ---                  подзаголовок
-//   # описание (строки комментария прямо над ключом)
+// Setting descriptions for the panel come from .env.example, the single source of truth:
+//   # ---------- Group ----------        group heading
+//   # --- Subgroup ---                   subheading
+//   # description (comment lines right above the key)
 //   KEY=
-// Из описания: «(секрет …)» — скрывать значение; «(по умолч. X)» — подсказка;
-// «: a | b» — выбор из вариантов. Ключи .env, которых нет в образце, — в группе «Прочее».
+// From the description: "(секрет ...)" hides the value; "(по умолч. X)" is the default hint;
+// ": a | b" is a choice of options. .env keys missing from the example go to the "Прочее" (Other) group.
 const fs = require('fs');
 const cron = require('node-cron');
 
@@ -45,7 +45,7 @@ function isIPv4(s) {
   return p.length === 4 && p.every((o) => /^\d{1,3}$/.test(o) && Number(o) <= 255);
 }
 
-// Ошибка для значения или null. Пустое значение всегда допустимо — работает значение по умолчанию.
+// Error for the value, or null. An empty value is always allowed: the default applies.
 function validate(key, value, item) {
   const v = String(value);
   if (/[\r\n]/.test(v)) return 'значение не может быть многострочным';

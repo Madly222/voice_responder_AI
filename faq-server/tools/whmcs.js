@@ -1,12 +1,12 @@
 const axios = require('axios');
 
-// Переходник биллинга: WHMCS. Сторона WHMCS — api_client.php на сервере биллинга (вне проекта,
-// PROJECT.md §5.1). Общая логика (проверка номера, карточка звонка, ошибки) — в providers.js.
+// Billing adapter: WHMCS. The WHMCS side is api_client.php on the billing server (outside this project,
+// PROJECT.md §5.1). Shared logic (number validation, call card, errors) lives in providers.js.
 const WHMCS_CUSTOM_API = process.env.WHMCS_CUSTOM_API;
 const WHMCS_API_KEY = process.env.WHMCS_API_KEY;
 const BILLING_TIMEOUT_MS = Number(process.env.BILLING_TIMEOUT_MS) || 15000;
 
-// Клиент по номеру договора (у нас — OSMP). Формат ответа — см. providers.js.
+// Client by contract number (OSMP here). Response format: see providers.js.
 async function findClient(clientNumber) {
   const response = await axios.get(WHMCS_CUSTOM_API, {
     params: { api_key: WHMCS_API_KEY, action: 'find_by_osmp', osmp_id: clientNumber },
@@ -19,7 +19,6 @@ async function findClient(clientNumber) {
   return c;
 }
 
-// Ссылка на карточку клиента в админке WHMCS.
 function clientUrl(call) {
   const base = (process.env.WHMCS_ADMIN_URL || '').replace(/\/+$/, '');
   if (!base || !call.client_id) return null;

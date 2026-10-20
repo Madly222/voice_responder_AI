@@ -22,8 +22,8 @@ services:
       - ULTRAVOX_API_KEY=$ULTRAVOX_API_KEY
     networks:
       - avr
-  # Русский агент: та же пара core + sts, другой ULTRAVOX_AGENT_ID. Наружу порт не публикуется —
-  # Asterisk ходит на avr-core-ru:5001 по сети avr (выбор языка в меню, extensions.conf).
+  # Russian agent: the same core + sts pair with a different ULTRAVOX_AGENT_ID. No port is published:
+  # Asterisk reaches avr-core-ru:5001 over the avr network (language menu, extensions.conf).
   avr-core-ru:
     image: agentvoiceresponse/avr-core
     platform: linux/x86_64

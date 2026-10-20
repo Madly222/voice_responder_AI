@@ -1,18 +1,18 @@
 """
 network-diag v2 (ExampleNet)
 
-Отличия от v1:
-  - ОДНА SSH-сессия на всю диагностику (порт + MAC) вместо двух;
-  - чтение до приглашения CLI вместо фиксированных пауз (было ~6 с на сессию
-    плюс 5 с ожидания тишины) → диагностика ~4-8 с вместо ~25 с;
-  - Cisco: поиск конкретного MAC (`show mac address-table address ...`)
-    с откатом на полную таблицу и на старый синтаксис `show mac-address-table`;
-  - белый список сетей управления: SSH только к адресам свитчей, никогда к IP клиента
-    и произвольному хосту (пароль NETWORK_USER не утечёт при подмене адреса);
-  - вход в enable, если приглашение '>' и задан NETWORK_ENABLE;
-  - сравнение порта, где найден MAC, с портом из NetBox (port_match).
+Changes from v1:
+  - ONE SSH session for the whole diagnosis (port + MAC) instead of two;
+  - reads until the CLI prompt instead of fixed pauses (was ~6 s per session
+    plus 5 s waiting for silence) -> diagnosis takes ~4-8 s instead of ~25 s;
+  - Cisco: looks up the specific MAC (`show mac address-table address ...`)
+    with fallback to the full table and to the old `show mac-address-table` syntax;
+  - management network whitelist: SSH only to switch addresses, never to a client IP
+    or an arbitrary host (so the NETWORK_USER password cannot leak via a spoofed address);
+  - enters enable mode if the prompt is '>' and NETWORK_ENABLE is set;
+  - compares the port where the MAC was found with the port from NetBox (port_match).
 
-Контракт /diagnose, /check-mac, /check-port, /test-ssh сохранён, добавлены поля.
+The /diagnose, /check-mac, /check-port, /test-ssh contract is unchanged; fields were added.
 """
 import ipaddress
 import os
@@ -32,8 +32,8 @@ NETWORK_PASS = os.getenv('NETWORK_PASS', '')
 NETWORK_ENABLE = os.getenv('NETWORK_ENABLE', '')
 CONNECT_TIMEOUT = float(os.getenv('SSH_CONNECT_TIMEOUT') or '8')
 CMD_TIMEOUT = float(os.getenv('SSH_CMD_TIMEOUT') or '12')
-# Общий лимит на одну диагностику (все SSH-сессии вместе). Замер 25.09.2026: 0,8–1,9 с на 13 Cisco.
-# Должен быть меньше таймаута faq-server → network-diag (12 с).
+# Overall limit for one diagnosis (all SSH sessions together). Measured 25.09.2026: 0.8-1.9 s on 13 Cisco switches.
+# Must stay below the faq-server -> network-diag timeout (12 s).
 TOTAL_TIMEOUT = float(os.getenv('SSH_TOTAL_TIMEOUT') or '10')
 
 
@@ -73,7 +73,7 @@ def reject(host):
 
 
 def _read(shell, timeout, extra_markers=()):
-    """Читает до приглашения CLI (или до маркера). Возвращает (текст, дождались_ли)."""
+    """Read until the CLI prompt (or a marker). Returns (text, prompt_seen)."""
     buf = ''
     end = time.time() + timeout
     while time.time() < end:
@@ -92,8 +92,8 @@ def _read(shell, timeout, extra_markers=()):
 
 
 def run_ssh_session(host, commands, deadline=None):
-    """Одна сессия, несколько команд. deadline — общий срок (time.time()), по умолчанию
-    TOTAL_TIMEOUT от начала сессии. Returns (outputs|None, error|None)."""
+    """One session, several commands. deadline is an absolute time.time() limit, by default
+    TOTAL_TIMEOUT from the session start. Returns (outputs|None, error|None)."""
     print(f'[SSH] ==== {host}: {commands}', flush=True)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -191,7 +191,7 @@ def diagnose_device(switch_ip, switch_name, mac_address, port, device_type):
         cmds.append(f'show interface {port}')
     cmds.append('show mac' if zte else f'show mac address-table address {mac_norm}')
 
-    deadline = time.time() + TOTAL_TIMEOUT  # один лимит на все сессии, включая запасные команды
+    deadline = time.time() + TOTAL_TIMEOUT  # one limit for all sessions, including fallback commands
     outputs, err = run_ssh_session(switch_ip, cmds, deadline)
     if err:
         return {'error': True, 'message': err}

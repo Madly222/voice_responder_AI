@@ -1,20 +1,20 @@
-// Переходники к внешним платформам: биллинг и учёт сети.
+// Adapters for external platforms: billing and network inventory.
 //
-// Наша часть (агент, карточка звонка, Telegram, диагностика) работает с единым форматом,
-// а откуда пришли данные — решает переходник, выбранный в .env:
+// Our side (agent, call card, Telegram, diagnostics) works with one common format,
+// and the adapter selected in .env decides where the data comes from:
 //   BILLING_PROVIDER = whmcs | none      NETWORK_SOURCE = netbox | none
-// none (или пусто) — функция выключена: тулз отвечает DISABLED, агенту эти тулзы не подключают.
+// none (or empty) disables the feature: the tool answers DISABLED and is not attached to the agent.
 //
-// Переходник биллинга:  { label, configured(), findClient(number), clientUrl(call) }
+// Billing adapter:     { label, configured(), findClient(number), clientUrl(call) }
 //   findClient → { found:false } | { found:true, client_name, client_type, client_id, client_ip,
-//                  address, is_active, is_paid, debt, ... } ; ошибка платформы — исключение.
-// Переходник сети:      { label, configured(), findByIp(ip), ipUrl(call), deviceUrl(call) }
+//                  address, is_active, is_paid, debt, ... } ; a platform error throws.
+// Network adapter:     { label, configured(), findByIp(ip), ipUrl(call), deviceUrl(call) }
 //   findByIp → { found:false, message } | { found:true, can_diagnose, note, mac_address, switch_ip,
-//                switch_name, port, pop, ref:{ ip_id, device_id } } ; ошибка платформы — исключение.
-// *Url(call) возвращают шаблон ссылки ({client_id}, {ip_id}, {device_id}) или null;
-// шаблон из .env (BILLING_CLIENT_URL, NETWORK_IP_URL, NETWORK_DEVICE_URL) важнее.
+//                switch_name, port, pop, ref:{ ip_id, device_id } } ; a platform error throws.
+// *Url(call) return a link template ({client_id}, {ip_id}, {device_id}) or null;
+// a template from .env (BILLING_CLIENT_URL, NETWORK_IP_URL, NETWORK_DEVICE_URL) takes precedence.
 //
-// Новая платформа = новый файл-переходник + строка в BILLING/NETWORK ниже.
+// A new platform = a new adapter file + a line in BILLING/NETWORK below.
 const callLogger = require('./callLogger');
 
 const BILLING = { whmcs: require('./whmcs') };
@@ -34,7 +34,7 @@ const billing = pick(BILLING, 'BILLING_PROVIDER');
 const network = pick(NETWORK, 'NETWORK_SOURCE');
 console.log(`[providers] биллинг: ${billing.name}, сеть: ${network.name}`);
 
-// Номер клиента: как агент его называет и какой у него формат (регулярка без ^ и $).
+// Client number: what the agent calls it and its format (regex without ^ and $).
 const CLIENT_ID_LABEL = process.env.CLIENT_ID_LABEL || 'OSMP';
 let CLIENT_ID_RE;
 try {
@@ -50,10 +50,10 @@ const disabled = (what) => ({
   message: `${what} is disabled on this installation - do not retry, offer a callback from a technician.`
 });
 
-// Ошибку платформы пишем в карточку звонка — она уйдёт в блок SYSTEM ERRORS отчёта.
+// Platform errors go on the call card and end up in the report's SYSTEM ERRORS block.
 function saveToCall(fields) {
   try { callLogger.updateCall.execute({ call_id: 'latest', ...fields }); }
-  catch (e) { /* активного звонка может не быть */ }
+  catch (e) { /* there may be no active call */ }
 }
 
 async function findClient(params) {
@@ -107,7 +107,7 @@ async function findNetwork(params) {
       return { error: false, data: { found: false, message: (n && n.message) || `IP ${ip} not found` } };
     }
     const { ref, ...data } = n;
-    // Поля карточки названы по NetBox исторически (старые записи calls.txt), смысл общий.
+    // Card fields are named after NetBox for historical reasons (old calls.txt records); the meaning is generic.
     saveToCall({
       netbox_ip_id: (ref && ref.ip_id) || null,
       netbox_device_id: (ref && ref.device_id) || null,
@@ -125,7 +125,7 @@ async function findNetwork(params) {
   }
 }
 
-// Ссылки для отчёта: шаблон из .env важнее шаблона переходника.
+// Report links: a template from .env takes precedence over the adapter's.
 function fill(tpl, vals) {
   if (!tpl) return null;
   let missing = false;

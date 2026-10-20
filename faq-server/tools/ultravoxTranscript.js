@@ -1,14 +1,14 @@
 /**
- * ultravoxTranscript.js — второй (резервный) источник фразы клиента.
+ * ultravoxTranscript.js: the second (fallback) source of the caller's phrase.
  *
- * Первый источник — параметр query тулза searchFAQ. Но агент может не вызвать searchFAQ
- * (ответил сам, сразу пошёл к OSMP и диагностике), и тогда в Telegram нечего показать.
- * Здесь мы берём реплики клиента из стенограммы звонка в Ultravox по их же API:
- * это готовые данные, ни LLM, ни дополнительных токенов не требуется.
+ * The first source is the query parameter of the searchFAQ tool. But the agent may never call searchFAQ
+ * (it answered on its own or went straight to OSMP and diagnostics), leaving nothing to show in Telegram.
+ * Here we take the caller's lines from the Ultravox call transcript via their API:
+ * the data is ready-made, so no LLM or extra tokens are needed.
  *
- * Звонок сопоставляется по времени: берём последние звонки агента и выбираем тот,
- * который начался в окне нашего звонка. Агент выбирается по языку звонка (меню Asterisk);
- * если язык неизвестен — смотрим звонки обоих агентов.
+ * The call is matched by time: take the agent's recent calls and pick the one
+ * that started within our call's window. The agent is chosen by call language (Asterisk menu);
+ * if the language is unknown, both agents' calls are checked.
  */
 const axios = require('axios');
 
@@ -26,8 +26,8 @@ function pickText(m) {
   return (m && (m.text || m.content || m.message) || '').toString().trim();
 }
 
-// Последние звонки одного агента (или всех, если agentId пуст).
-// Параметр ?agentId= у /calls Ultravox игнорирует — нужен /agents/{id}/calls.
+// Recent calls of one agent (or all agents if agentId is empty).
+// Ultravox ignores ?agentId= on /calls, so /agents/{id}/calls is needed.
 async function listCalls(headers, agentId) {
   const url = agentId ? `${API}/agents/${agentId}/calls` : `${API}/calls`;
   const list = await axios.get(url, {
@@ -46,16 +46,16 @@ function callTime(c) {
 }
 
 /**
- * @param {string} startIso начало нашего звонка (ISO)
- * @param {string} endIso   конец нашего звонка (ISO)
- * @param {string} [lang]   'ro' | 'ru' — язык из меню; без него ищем у обоих агентов
- * @param {string} [uvCallId] ID звонка Ultravox, если известен (P-02) — тогда без поиска по времени
- * @returns {Promise<string[]>} реплики клиента (может быть пустым)
+ * @param {string} startIso start of our call (ISO)
+ * @param {string} endIso   end of our call (ISO)
+ * @param {string} [lang]   'ro' | 'ru' from the menu; without it both agents are searched
+ * @param {string} [uvCallId] Ultravox call ID if known (P-02); skips the time-based search
+ * @returns {Promise<string[]>} caller's lines (may be empty)
  */
 async function getUserUtterances(startIso, endIso, lang, uvCallId) {
   if (!KEY) return [];
   const headers = { 'X-API-Key': KEY, Accept: 'application/json' };
-  const from = new Date(startIso).getTime() - 5 * 60 * 1000; // запас на расхождение часов
+  const from = new Date(startIso).getTime() - 5 * 60 * 1000; // margin for clock skew
   const to = new Date(endIso || Date.now()).getTime() + 5 * 60 * 1000;
 
   try {
@@ -89,7 +89,7 @@ async function getUserUtterances(startIso, endIso, lang, uvCallId) {
     for (const m of items) {
       if (!isUser(m.role)) continue;
       const t = pickText(m).slice(0, 300);
-      // отбрасываем «алло», «да», цифры OSMP и прочие короткие подтверждения
+      // drop "алло", "да", OSMP digits and other short confirmations
       if (t.length < 8 || /^[\d\s+()-]+$/.test(t)) continue;
       if (!out.includes(t)) out.push(t);
       if (out.length >= MAX_UTTERANCES) break;
@@ -102,8 +102,8 @@ async function getUserUtterances(startIso, endIso, lang, uvCallId) {
 }
 
 /**
- * Когда начался звонок Ultravox и какой агент (язык) его ведёт — для привязки к нашему звонку (P-02).
- * @returns {Promise<{created: string|null, lang: string|null}|null>} null — API недоступен
+ * When the Ultravox call started and which agent (language) handles it, for binding to our call (P-02).
+ * @returns {Promise<{created: string|null, lang: string|null}|null>} null if the API is unavailable
  */
 async function getCallInfo(uvCallId) {
   if (!KEY || !uvCallId) return null;
@@ -119,7 +119,7 @@ async function getCallInfo(uvCallId) {
     const c = r.data;
     const agentId = c.agentId || (c.agent && (c.agent.agentId || c.agent.id)) || null;
     const lang = Object.keys(AGENTS).find((k) => AGENTS[k] && AGENTS[k] === agentId) || null;
-    // shortSummary Ultravox пишет сам через несколько секунд после конца звонка
+    // Ultravox writes shortSummary itself a few seconds after the call ends
     return { created: c.created || c.joined || null, lang, shortSummary: c.shortSummary || null, ended: c.ended || null };
   } catch (err) {
     console.warn('[transcript] не удалось получить звонок Ultravox:', err.code || err.message);

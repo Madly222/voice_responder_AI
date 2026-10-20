@@ -1,11 +1,11 @@
 const axios = require('axios');
 
-// Переходник учёта сети: NetBox. Общая логика (карточка звонка, ошибки) — в providers.js.
+// Network inventory adapter: NetBox. Shared logic (call card, errors) lives in providers.js.
 
 const NETBOX_API_URL = (process.env.NETBOX_API_URL || '').replace(/\/+$/, '');
 const NETBOX_API_TOKEN = process.env.NETBOX_API_TOKEN;
-// Лимит на один запрос. Обычный ответ NetBox 0.1–0.3 с; тулз делает 2 последовательных шага,
-// значит худший случай ~2×лимит — должен быть меньше таймаута getNetworkData в Ultravox (15 с).
+// Per-request limit. NetBox usually answers in 0.1-0.3 s; the tool makes 2 sequential steps,
+// so the worst case is ~2x the limit, which must stay below the getNetworkData timeout in Ultravox (15 s).
 const NETBOX_TIMEOUT_MS = Number(process.env.NETBOX_TIMEOUT_MS) || 5000;
 
 async function callNetboxApi(endpoint, params = {}) {
@@ -29,7 +29,7 @@ async function callNetboxApi(endpoint, params = {}) {
   return response.data;
 }
 
-// Сети, где живут управляющие адреса свитчей (можно переопределить в .env)
+// Networks holding switch management addresses (can be overridden in .env)
 const MGMT_NETS = (process.env.SWITCH_MGMT_NETS || '198.51.100.0/24')
   .split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 
@@ -58,8 +58,8 @@ function inMgmtNets(ip) {
   });
 }
 
-// Управляющий адрес свитча: primary_ip4, а если его нет (так у большинства устройств) —
-// ищем адрес устройства в сети управления. Иначе возвращаем null и НЕ выдумываем адрес.
+// Switch management address: primary_ip4, or if there is none (true for most devices),
+// look for a device address in the management network. Otherwise return null and do NOT invent one.
 async function getMgmtIpByDeviceId(deviceId) {
   if (!deviceId) return null;
   try {
@@ -80,9 +80,9 @@ async function getMgmtIpByDeviceId(deviceId) {
   return null;
 }
 
-// Оборудование, которое умеет опрашивать network-diag: Cisco IOS/NX-OS и ZTE.
-// В NetBox Nexus и D-Link записаны с производителем "Generic", поэтому смотрим и на модель.
-// MikroTik, D-Link, Juniper и прочее — не поддерживается (агент сразу предлагает callback).
+// Hardware network-diag can query: Cisco IOS/NX-OS and ZTE.
+// In NetBox, Nexus and D-Link are recorded with manufacturer "Generic", so the model is checked too.
+// MikroTik, D-Link, Juniper and the rest are not supported (the agent offers a callback straight away).
 function isDiagSupported(device) {
   const dt = (device && device.device_type) || {};
   const vendor = ((dt.manufacturer && dt.manufacturer.name) || '').toLowerCase();
@@ -90,8 +90,8 @@ function isDiagSupported(device) {
   return vendor === 'cisco' || vendor === 'zte' || /^N\dK-|nexus/i.test(model);
 }
 
-// Устройство по id: площадка (POP), primary_ip4 и поддержка диагностики одним запросом.
-// Если NetBox не ответил, supported = null (неизвестно) — диагностику не блокируем.
+// Device by id: site (POP), primary_ip4 and diagnostics support in one request.
+// If NetBox does not answer, supported = null (unknown) and diagnostics are not blocked.
 async function getDeviceDetails(deviceId) {
   if (!deviceId) return { site: null, primary_ip: null, supported: null };
   try {
@@ -125,7 +125,7 @@ function extractMacAddress(ipData) {
   return null;
 }
 
-// Сеть клиента по IP. Формат ответа — см. providers.js. Ошибка API — исключение.
+// Client network data by IP. Response format: see providers.js. An API error throws.
 async function findByIp(ip) {
   console.log(`[NetBox] findByIp: ${ip}`);
   {
@@ -153,7 +153,7 @@ async function findByIp(ip) {
       }
     }
 
-    // Второй шаг — оба запроса параллельно; ошибки внутри не роняют тулз (MAC/порт уже есть).
+    // Second step: both requests in parallel; errors here do not fail the tool (MAC/port are already known).
     const [details, mgmtIp] = await Promise.all([
       getDeviceDetails(netbox_device_id_early),
       getMgmtIpByDeviceId(netbox_device_id_early)
@@ -196,7 +196,6 @@ async function findByIp(ip) {
   }
 }
 
-// Ссылки на запись IP и на устройство в NetBox.
 function netboxWeb() {
   return (process.env.NETBOX_WEB_URL || NETBOX_API_URL || '').replace(/\/+$/, '');
 }

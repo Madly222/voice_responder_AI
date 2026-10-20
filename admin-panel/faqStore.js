@@ -7,8 +7,8 @@ function read(faqPath) {
   return JSON.parse(fs.readFileSync(faqPath, 'utf8'));
 }
 
-// Проверяет структуру перед записью, чтобы не убить faq.json кривыми данными
-// (его читает живой faq-server через fs.watch — битый JSON сломал бы поиск).
+// Validates the structure before writing so bad data cannot corrupt faq.json
+// (the live faq-server reads it via fs.watch, and broken JSON would break search).
 function validate(data) {
   if (!data || !Array.isArray(data.faq)) throw new Error('ожидается { faq: [...] }');
   const ids = new Set();
@@ -32,13 +32,13 @@ function write(faqPath, data) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     fs.copyFileSync(faqPath, path.join(backupDir, `faq-${stamp}.json.bak`));
   }
-  // нормализуем: чистим пустые ключевые слова, обрезаем пробелы
+  // normalise: drop empty keywords, trim whitespace
   data.faq.forEach((e) => {
     e.keywords.ru = e.keywords.ru.map((s) => s.trim()).filter(Boolean);
     e.keywords.ro = e.keywords.ro.map((s) => s.trim()).filter(Boolean);
     if (typeof e.requires_osmp !== 'boolean') delete e.requires_osmp;
   });
-  fs.writeFileSync(faqPath, JSON.stringify(data, null, 2) + require('os').EOL);   // с переводом строки в конце, как в git
+  fs.writeFileSync(faqPath, JSON.stringify(data, null, 2) + require('os').EOL);   // trailing newline, as git expects
   return { ok: true, count: data.faq.length };
 }
 

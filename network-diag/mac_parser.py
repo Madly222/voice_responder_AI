@@ -9,7 +9,7 @@ IFACE_RE = re.compile(r'^[A-Za-z][A-Za-z\-_]*\d+([/:._]\d+)*$')
 
 
 def normalize_port(port):
-    """Gi1/0/7 и GigabitEthernet1/0/7 -> gi1/0/7 (для сравнения портов)."""
+    """Gi1/0/7 and GigabitEthernet1/0/7 -> gi1/0/7 (for comparing ports)."""
     if not port:
         return None
     p = str(port).strip().lower()
@@ -27,8 +27,8 @@ def normalize_port(port):
 
 def parse_line_generic(line):
     """
-    Возвращает (port, vlan) из строки MAC-таблицы любого вендора.
-    Работает для:
+    Return (port, vlan) from a MAC table line of any vendor.
+    Works for:
       Cisco IOS:   10   0011.2233.4455  DYNAMIC  Gi1/0/7
       IOS 12.x:    0011.2233.4455  Dynamic  10  FastEthernet0/1
       NX-OS:     * 10   0011.2233.4455  dynamic  0  F  F  Eth1/1
@@ -142,7 +142,7 @@ class MACParser:
                     print(f"[MACParser] Parse error: {e}")
                     continue
 
-            # Шаблон не подошёл (старый IOS, NX-OS) — разбираем по токенам
+            # Pattern did not match (old IOS, NX-OS): parse by tokens
             port, vlan = parse_line_generic(line)
             if port:
                 print(f"[MACParser] Универсальный разбор: port={port} vlan={vlan}")
@@ -218,8 +218,8 @@ class MACParser:
                     found_mac = match.group(2)
                     port = match.group(3)
                     if not (IFACE_RE.match(port) and re.search(r'\d', port)):
-                        # Catalyst 4500/4948: между типом и портом колонка protocols
-                        # (ip,ipx,assigned,other) — порт во всех форматах Cisco последний, берём его.
+                        # Catalyst 4500/4948 has a protocols column (ip,ipx,assigned,other)
+                        # between type and port; the port is last in every Cisco format, so take that.
                         ifaces = [t for t in line.split() if IFACE_RE.match(t) and re.search(r'\d', t)]
                         if not ifaces:
                             raise ValueError(f'не найден порт в строке: {line.strip()}')
@@ -242,7 +242,7 @@ class MACParser:
                     print(f"[MACParser] Parse error: {e}")
                     continue
 
-            # Шаблон не подошёл (старый IOS, NX-OS) — разбираем по токенам
+            # Pattern did not match (old IOS, NX-OS): parse by tokens
             port, vlan = parse_line_generic(line)
             if port:
                 print(f"[MACParser] Универсальный разбор: port={port} vlan={vlan}")

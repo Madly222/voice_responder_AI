@@ -7,32 +7,32 @@ const CALLS_FILE = path.join(__dirname, '../data/calls.txt');
 
 let activeCalls = {};
 let callCounter = 0;
-// Фразы клиента, пришедшие до startCall (агент может вызвать searchFAQ раньше).
+// Caller phrases that arrived before startCall (the agent may call searchFAQ first).
 let pendingRequests = [];
 
-// P-02: какой звонок обслуживает текущий запрос тулза.
-// server.js кладёт сюда { uvCallId, callId } на время запроса; все 'latest' внутри
-// тулзов (findByOSMP, getNetworkData, diagnoseClient, updateCall) пишут в этот звонок.
+// P-02: which call the current tool request belongs to.
+// server.js stores { uvCallId, callId } here for the duration of a request; every 'latest' inside
+// the tools (findByOSMP, getNetworkData, diagnoseClient, updateCall) writes to that call.
 const callContext = new AsyncLocalStorage();
 
 function runInCall(ctx, fn) {
   return callContext.run(ctx, fn);
 }
 
-// 'latest' / пусто → звонок текущего запроса; без контекста (Asterisk, Test tool) — последний открытый.
+// 'latest' / empty -> the current request's call; without context (Asterisk, Test tool) the last open call.
 function resolveCallId(call_id) {
   if (call_id && call_id !== 'latest') return activeCalls[call_id] ? call_id : null;
   const ctx = callContext.getStore();
   if (ctx && ctx.uvCallId) {
-    // звонок Ultravox известен: пишем только в свой звонок, иначе никуда
+    // Ultravox call is known: write only to its own call, otherwise nowhere
     return ctx.callId && activeCalls[ctx.callId] ? ctx.callId : null;
   }
   const keys = Object.keys(activeCalls);
   return keys.length ? keys[keys.length - 1] : null;
 }
 
-// Выбор нашего звонка для нового звонка Ultravox, когда свободных несколько:
-// тот же язык (агент) и ближайшее время начала.
+// Picks our call for a new Ultravox call when several are unbound:
+// same language (agent) and the closest start time.
 function chooseCandidate(ids, info) {
   let list = ids;
   if (info && info.lang) {
@@ -70,7 +70,7 @@ async function doBind(uvCallId) {
   return pick;
 }
 
-// Привязки идут по одной, чтобы два звонка не забрали один и тот же call.
+// Bindings run one at a time so two calls cannot claim the same call.
 let bindQueue = Promise.resolve();
 function bindUltravoxCall(uvCallId) {
   const run = bindQueue.then(() => doBind(uvCallId));
@@ -96,7 +96,7 @@ function init() {
 
 init();
 
-// Время в отчётах — в часовом поясе компании (контейнер живёт в UTC; P-24). Летнее/зимнее — само.
+// Report times use the company time zone (the container runs in UTC; P-24). DST is handled automatically.
 const TIMEZONE = process.env.TIMEZONE || 'UTC';
 const DATE_FMT = (() => {
   try {
@@ -122,22 +122,22 @@ function startCall(params) {
     number: callCounter,
     start_time: new Date().toISOString(),
     phone: params.phone || params.caller_id || null,
-    channel: params.channel || null,  // канал Asterisk: по нему endCall закрывает именно этот звонок
-    uv_call_id: null,                 // ID звонка Ultravox (привязывается при первом вызове тулза)
-    lang: ['ro', 'ru'].includes(params.lang) ? params.lang : null,  // из меню Asterisk
+    channel: params.channel || null,  // Asterisk channel: lets endCall close exactly this call
+    uv_call_id: null,                 // Ultravox call ID (bound on the first tool call)
+    lang: ['ro', 'ru'].includes(params.lang) ? params.lang : null,  // from the Asterisk menu
     client_name: null,
     client_type: null,
     osmp_id: null,
     client_ip: null,
     address: null,
-    client_id: null,          // id клиента в WHMCS (для ссылки)
-    netbox_ip_id: null,       // id записи IP в NetBox (для ссылки)
-    netbox_device_id: null,   // id устройства в NetBox (для ссылки)
-    request_summary: null,     // суть обращения одной фразой (присылает агент в updateCall)
-    resolution: null,          // что агент сказал/посоветовал клиенту
-    user_request: null,        // что сказал клиент (первый запрос в searchFAQ)
-    user_requests: [],         // все запросы клиента за звонок
-    faq_matched: [],           // какие записи FAQ совпали
+    client_id: null,          // WHMCS client id (for the link)
+    netbox_ip_id: null,       // NetBox IP record id (for the link)
+    netbox_device_id: null,   // NetBox device id (for the link)
+    request_summary: null,     // one-sentence request summary (sent by the agent via updateCall)
+    resolution: null,          // what the agent told / advised the client
+    user_request: null,        // what the client said (first searchFAQ query)
+    user_requests: [],         // all client queries during the call
+    faq_matched: [],           // which FAQ entries matched
     is_active: null,
     is_paid: null,
     mac_address: null,
@@ -228,12 +228,12 @@ function updateCall(params) {
   };
 }
 
-// Запоминает фразу клиента: её присылает Ultravox в searchFAQ как query.
-// Это дословно то, что сказал клиент — ни LLM, ни лишних запросов не нужно.
+// Stores the caller's phrase: Ultravox sends it to searchFAQ as query.
+// It is verbatim what the client said, so no LLM or extra requests are needed.
 function noteUserRequest(query, faqId) {
   if (!query) return false;
   if (!Object.keys(activeCalls).length) {
-    // звонок ещё не начат — придержим фразу, startCall её заберёт
+    // call has not started yet: hold the phrase, startCall will pick it up
     pendingRequests.push({ q: String(query).trim().slice(0, 300), ts: Date.now() });
     if (pendingRequests.length > 10) pendingRequests.shift();
     return false;
@@ -259,7 +259,7 @@ function endCall(params) {
   if (Object.keys(activeCalls).length === 0) {
     return { error: true, message: 'No active calls' };
   }
-  // Asterisk присылает свой канал — закрываем именно этот звонок, а не последний открытый.
+  // Asterisk sends its channel: close exactly that call, not the last open one.
   const call_id = channel
     ? Object.keys(activeCalls).find((id) => activeCalls[id].channel === channel)
     : resolveCallId((params || {}).call_id);
@@ -291,7 +291,7 @@ function endCall(params) {
   const chatbotData = formatCallForChatbot(call);
   chatbotData.start_time = call.start_time;
   chatbotData.end_time = call.end_time;
-  // снимок звонка — если фразу клиента дотянем из стенограммы, пересоберём текст
+  // call snapshot, so the text can be rebuilt if the caller's phrase arrives later from the transcript
   chatbotData._call = JSON.parse(JSON.stringify(call));
   delete activeCalls[call_id];
 
@@ -426,8 +426,8 @@ function formatCallForFile(call) {
   return entry;
 }
 
-// Ссылки на биллинг и учёт сети строят переходники (providers.js), шаблоны можно задать в .env.
-// require внутри функций: providers.js сам подключает этот модуль.
+// Billing and network inventory links are built by the adapters (providers.js); templates can be set in .env.
+// require inside the functions because providers.js itself requires this module.
 const providers = () => require('./providers');
 
 function link(url, text) {
@@ -438,20 +438,20 @@ const whmcsClientUrl = (call) => providers().clientUrl(call);
 const netboxIpUrl = (call) => providers().ipUrl(call);
 const netboxDeviceUrl = (call) => providers().deviceUrl(call);
 
-// Отсеивает подтверждения и продиктованные цифры: «Da», «Da, 1-9-6-1-6», «алло».
+// Filters out confirmations and dictated digits: "Da", "Da, 1-9-6-1-6", "алло".
 const JUNK_RE = /^(da|nu|ok|bine|alo|salut|corect|mul[tț]umesc|multumesc|bun[aă]|да|нет|ага|алло|хорошо|спасибо|ясно)[\s.,!?-]*$/i;
 
 function isUsefulPhrase(text) {
   const t = String(text || '').trim();
   if (t.length < 10) return false;
   if (JUNK_RE.test(t)) return false;
-  // убираем цифры и пунктуацию — если букв почти не осталось, это диктовка кода
+  // strip digits and punctuation: if hardly any letters are left, it was a dictated code
   const letters = t.replace(/[\d\s.,!?:;()\/-]/g, '');
   if (letters.length < 12) return false;
-  // обрывки вроде «la internet.» — слишком мало слов, чтобы что-то значить
+  // fragments like "la internet." have too few words to mean anything
   const words = t.split(/\s+/).filter((w) => /[a-z\u00e0-\u024f\u0400-\u04ff]{2,}/i.test(w));
   if (words.length < 4) return false;
-  // «Da, e corect», «Da, 1-9-6-1-6» — первое слово-подтверждение и дальше почти ничего
+  // "Da, e corect", "Da, 1-9-6-1-6": a confirmation word followed by almost nothing
   const rest = t.replace(/^(da|nu|ok|bine|да|нет)[\s,.]+/i, '');
   if (rest !== t && rest.replace(/[\d\s.,!?:;()\/-]/g, '').length < 10) return false;
   return true;
@@ -461,8 +461,8 @@ function esc(v) {
   return String(v == null ? '-' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Проблемы КЛИЕНТА — всё, что реально мешает ему пользоваться услугой.
-// Долг сюда НЕ попадает: при неоплате мы не отключаем сразу.
+// CLIENT problems: anything that actually keeps them from using the service.
+// Debt is NOT included: we do not cut service immediately for non-payment.
 function generateProblems(call) {
   const out = [];
   if (call.is_active === false) out.push('Contract not active - service disconnected');
@@ -482,7 +482,7 @@ function generateProblems(call) {
   return out;
 }
 
-// Ошибки НАШЕЙ системы — это не проблема клиента, а то, что чинить нам.
+// Errors in OUR system: not the client's problem but something for us to fix.
 function generateSystemErrors(call) {
   const out = [];
   if (call.whmcs_error) out.push(providers().billingLabel() + ': ' + call.whmcs_error);
@@ -508,16 +508,16 @@ function formatCallForChatbot(call) {
   const SEP = '\u2500'.repeat(18);
 
   const L = [];
-  // Шапка: номер, время, телефон
+  // Header: number, time, phone
   L.push('\u{1F514} <b>Call #' + call.number + '</b>  \u00B7  ' + formatDate(call.start_time));
   const LANG_TAG = { ro: '\u{1F1F7}\u{1F1F4} RO', ru: '\u{1F1F7}\u{1F1FA} RU' };
   L.push('\u{1F4DE} <b>' + esc(call.phone) + '</b>' + (LANG_TAG[call.lang] ? '  ·  ' + LANG_TAG[call.lang] : ''));
   if (call.needs_callback) L.push('\u26A0\uFE0F <b>CALLBACK</b>: ' + esc(call.callback_reason || 'client requested operator'));
   L.push(SEP);
 
-  // Суть обращения — самое важное, вверх. Источник по убыванию надёжности:
-  // request_summary от агента → сводка Ultravox → сырые фразы распознавания (могут быть бредом).
-  // Подписи честные: толкование агента — не «слова клиента».
+  // The request summary matters most, so it goes on top. Sources by decreasing reliability:
+  // agent's request_summary -> Ultravox summary -> raw recognised phrases (may be garbage).
+  // Labels stay honest: the agent's interpretation is not "the client's words".
   if (call.request_summary) {
     L.push('\u{1F4DD} <b>REQUEST</b> <i>(agent’s note)</i>');
     L.push(esc(call.request_summary));
@@ -537,7 +537,6 @@ function formatCallForChatbot(call) {
   }
   L.push('');
 
-  // Итог: проблема клиента
   L.push('\u{1F50D} <b>PROBLEM</b>');
   L.push(problems.length ? problems.map((p) => '\u2022 ' + esc(p)).join('\n')
     : sysErrors.length ? '<i>not determined - check did not complete</i>'
@@ -550,7 +549,6 @@ function formatCallForChatbot(call) {
     L.push('');
   }
 
-  // Ошибки нашей системы
   if (sysErrors.length) {
     L.push('\u{1F6E0} <b>SYSTEM ERRORS</b> <i>(our side)</i>');
     L.push(sysErrors.map((e) => '\u2022 ' + esc(e)).join('\n'));
@@ -558,7 +556,7 @@ function formatCallForChatbot(call) {
   }
 
   L.push(SEP);
-  // Клиент — компактно, по строке на смысл
+  // Client: compact, one line per fact
   L.push('\u{1F464} ' + link(whmcsClientUrl(call), esc(call.client_name))
     + (call.client_type ? '  \u00B7  ' + esc(call.client_type) : ''));
   L.push('\u{1F4B3} ' + esc(providers().CLIENT_ID_LABEL) + ' ' + esc(call.osmp_id)
@@ -575,7 +573,6 @@ function formatCallForChatbot(call) {
     L.push('\u{1F5A7} ' + (parts.join('  \u00B7  ') || '-'));
   }
 
-  // Диагностика — одна строка
   const portTxt = call.port_status === 'up' ? '\u2705 port up'
     : call.port_status === 'down' ? '\u274C port down' : '\u2753 port n/a';
   const macTxt = call.mac_found === true ? '\u2705 MAC found'
@@ -602,7 +599,7 @@ function formatCallForChatbot(call) {
   };
 }
 
-// Для журнала calls.txt и совместимости: одна строка с итогом.
+// One-line summary for the calls.txt log and backwards compatibility.
 function generatePossibleIssue(call) {
   const problems = generateProblems(call);
   const sysErrors = generateSystemErrors(call);
@@ -636,7 +633,7 @@ function getCalls(params) {
   }
 }
 
-// Пересобрать сообщение, добавив фразы клиента из стенограммы Ultravox.
+// Rebuild the message with the caller's phrases from the Ultravox transcript.
 function rebuildChatbotData(callSnapshot, utterances, uvSummary) {
   const call = Object.assign({}, callSnapshot);
   if (uvSummary) call.uv_summary = uvSummary;

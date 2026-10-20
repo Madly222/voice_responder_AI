@@ -1,6 +1,6 @@
-// -------- ULTRAVOX: агенты RO / RU --------
-// Правка агента в Ultravox. «Проверить» показывает, что изменится; «Применить» сохраняет копию
-// агента (история, откат) и отправляет изменения. Тулзы — пока только просмотр.
+// -------- ULTRAVOX: RO / RU agents --------
+// Agent editing in Ultravox. "Check" shows what will change; "Apply" saves a copy of the
+// agent (history, rollback) and sends the changes. Tools are view-only for now.
 const UV = { agents: [], lang: null, voices: null, models: [] };
 const END_LABELS = { '': 'только сообщение', END_BEHAVIOR_HANG_UP_SOFT: 'сообщение и положить трубку (можно перебить)',
   END_BEHAVIOR_HANG_UP_STRICT: 'сообщение и положить трубку (нельзя перебить)' };
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#uvReload').onclick = () => { UV.voices = null; loadUltravox(); loadUvTools(); };
 });
 
-// -------- ULTRAVOX: тулзы (общие для RO и RU) --------
+// -------- ULTRAVOX: tools (shared by RO and RU) --------
 const REQ_LABEL = { billing: 'биллинг', network: 'учёт сети' };
 
 async function loadUvTools() {

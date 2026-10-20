@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-ultravox_export.py — экспорт текущей настройки Ultravox (агент + тулзы) в Markdown без секретов.
+ultravox_export.py: export the current Ultravox setup (agent + tools) to Markdown, without secrets.
 
-    python3 scripts/ultravox_export.py          # ~/ultravox_export_<дата>.md (безопасно пересылать)
-    python3 scripts/ultravox_export.py --raw    # + ~/ultravox_tools_raw_<дата>.json (ЕСТЬ СЕКРЕТЫ)
-    python3 scripts/ultravox_export.py --check-ngrok   # код выхода 1, если какой-то тулз ещё на ngrok
+    python3 scripts/ultravox_export.py          # ~/ultravox_export_<date>.md (safe to share)
+    python3 scripts/ultravox_export.py --raw    # + ~/ultravox_tools_raw_<date>.json (CONTAINS SECRETS)
+    python3 scripts/ultravox_export.py --check-ngrok   # exit code 1 if any tool still points at ngrok
 
-Ключ API и ID агента берутся из .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Только stdlib.
+The API key and agent ID come from .env (ULTRAVOX_API_KEY, ULTRAVOX_AGENT_ID). Stdlib only.
 """
 import argparse
 import json

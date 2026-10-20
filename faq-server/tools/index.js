@@ -4,10 +4,10 @@ const providers = require('./providers');
 const axios = require('axios');
 
 const NETWORK_DIAG_URL = process.env.NETWORK_DIAG_URL || 'http://localhost:5000';
-// Сколько ждём network-diag. Больше SSH_TOTAL_TIMEOUT, меньше таймаута diagnoseClient в Ultravox.
+// How long to wait for network-diag: above SSH_TOTAL_TIMEOUT, below the diagnoseClient timeout in Ultravox.
 const DIAG_TIMEOUT_MS = Number(process.env.DIAG_TIMEOUT_MS) || 12000;
 
-// Сети управления свитчами: только туда разрешено ходить диагностике.
+// Switch management networks: the only place diagnostics may connect to.
 const MGMT_NETS = (process.env.SWITCH_MGMT_NETS || '198.51.100.0/24')
   .split(/[,;]/).map((x) => x.trim()).filter(Boolean);
 
@@ -37,8 +37,8 @@ function isMgmtIp(ip) {
 }
 
 module.exports = {
-  // Обёртка: сам поиск не меняется, но фраза клиента (query) сохраняется
-  // в карточку звонка — это и есть «что сказал клиент» в Telegram.
+  // Wrapper: the search itself is unchanged, but the caller's phrase (query) is stored
+  // on the call card; this is what Telegram shows as "what the client said".
   searchFAQ: {
     ...faq.searchFAQ,
     execute: async (params) => {
@@ -55,7 +55,7 @@ module.exports = {
       return result;
     },
   },
-  // Имя тулза историческое (так он называется в Ultravox); ищет клиента в выбранном биллинге.
+  // The tool name is historical (that is its name in Ultravox); it looks the client up in the selected billing system.
   findByOSMP: {
     name: 'findByOSMP',
     description: `Find client in billing by ${providers.CLIENT_ID_LABEL} ID`,
@@ -96,12 +96,12 @@ module.exports = {
       required: ['switch_ip', 'mac_address']
     },
     execute: async (params) => {
-      // Без учёта сети неоткуда взять свитч и MAC — диагностика выключена вместе с ним.
+      // Without the network inventory there is no switch or MAC to use, so diagnostics are disabled with it.
       if (!providers.networkEnabled()) return providers.disabled('Remote diagnostics');
       console.log('[diagnoseClient] Calling network-diag (SSH) with params:', JSON.stringify(params));
 
-      // switch_ip должен быть настоящим адресом свитча из сети управления.
-      // LLM может подставить сюда "null", имя свитча или IP клиента — такие запросы отбиваем.
+      // switch_ip must be a real switch address from the management network.
+      // The LLM may put "null", a switch name or the client IP here; such requests are rejected.
       const ip = String((params && params.switch_ip) || '').trim();
       if (!isMgmtIp(ip)) {
         const msg = `switch IP is unknown or not allowed ("${ip || 'empty'}"`
@@ -109,7 +109,7 @@ module.exports = {
         console.error('[diagnoseClient] ОТКАЗ:', msg);
         try {
           callLogger.updateCall.execute({ call_id: 'latest', diag_error: msg });
-        } catch (e) { /* активного звонка может не быть */ }
+        } catch (e) { /* there may be no active call */ }
         return {
           error: true,
           code: 'SWITCH_IP_UNKNOWN',
@@ -124,15 +124,15 @@ module.exports = {
           mac_address: params.mac_address,
           port: params.port
         }, {
-          // network-diag сам укладывается в SSH_TOTAL_TIMEOUT (10 с); обычно 1–2 с (замер 25.09.2026).
-          // Должно быть меньше таймаута diagnoseClient в Ultravox.
+          // network-diag keeps within SSH_TOTAL_TIMEOUT (10 s); usually 1-2 s (measured 25.09.2026).
+          // Must stay below the diagnoseClient timeout in Ultravox.
           timeout: DIAG_TIMEOUT_MS,
           headers: { 'Content-Type': 'application/json' }
         });
 
         console.log('[diagnoseClient] Response:', JSON.stringify(response.data));
 
-        // Ошибка network-diag приходит как HTTP 200 + error:true — раньше она терялась.
+        // network-diag reports errors as HTTP 200 + error:true; these used to get lost.
         if (response.data && response.data.error === true) {
           const msg = `${response.data.message || 'unknown error'} (switch ${params.switch_ip}${params.port ? ', port ' + params.port : ''})`;
           console.error('[diagnoseClient] network-diag вернул ошибку:', msg);

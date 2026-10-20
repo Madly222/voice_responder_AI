@@ -1,5 +1,5 @@
 FROM node:20-alpine
-# docker-cli нужен для рестарта контейнеров через смонтированный docker.sock
+# docker-cli is needed to restart containers through the mounted docker.sock
 RUN apk add --no-cache docker-cli docker-cli-compose
 WORKDIR /app
 COPY package.json ./

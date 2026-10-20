@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// FAQ перечитывается, если файл изменился (правка в панели действует сразу, без рестарта, P-03).
-// Проверка — по времени изменения перед каждым поиском; битый файл не применяется, работаем со старым.
+// The FAQ is reloaded when the file changes (edits in the panel apply at once, no restart, P-03).
+// The mtime is checked before each search; a broken file is not applied and the old data stays in use.
 const FAQ_PATH = path.join(__dirname, '../data/faq.json');
 let faqData = { faq: [] };
 let faqMtime = 0;

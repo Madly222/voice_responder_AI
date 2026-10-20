@@ -15,9 +15,9 @@ const ENV_PATH = process.env.ENV_PATH || '/data/.env';
 const ASTERISK_DIR = process.env.ASTERISK_DIR || '/data/asterisk/conf';
 const FAQ_PATH = process.env.FAQ_PATH || '/data/faqdata/faq.json';
 const ULTRAVOX_URL = process.env.PANEL_ULTRAVOX_URL || 'https://app.ultravox.ai';
-// Настройки панели (переживают перезапуск). Хранятся отдельным JSON рядом с данными.
+// Panel settings (survive restarts), stored as a separate JSON file next to the data.
 const SETTINGS_PATH = process.env.SETTINGS_PATH || '/data/faqdata/panel-settings.json';
-const DEFAULT_SETTINGS = { notifyMode: 'problems' }; // 'problems' = только красное, 'always' = всегда
+const DEFAULT_SETTINGS = { notifyMode: 'problems' }; // 'problems' = only when something is red, 'always' = every time
 function readSettings() {
   try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8')) }; }
   catch (_) { return { ...DEFAULT_SETTINGS }; }
@@ -28,7 +28,7 @@ function writeSettings(patch) {
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(s, null, 2));
   return s;
 }
-// Какие Asterisk-файлы разрешено редактировать (whitelist — не даём трогать произвольное).
+// Asterisk files that may be edited (a whitelist, so arbitrary files cannot be touched).
 const ASTERISK_FILES = ['pjsip.conf', 'extensions.conf', 'queues.conf', 'ari.conf', 'manager.conf'];
 
 const ADMIN_USER = process.env.PANEL_USER || 'admin';
@@ -40,17 +40,16 @@ if (!ADMIN_PASS) {
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-// Вход с защитой от подбора пароля и журнал действий (security.js).
 const security = require('./security');
 app.use(security.authGuard({ user: ADMIN_USER, pass: ADMIN_PASS, realm: 'avr-admin' }));
 app.use(security.auditMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---- ENV ----
-// Группы, описания и значения по умолчанию — из .env.example проекта (envSchema.js).
+// Groups, descriptions and defaults come from the project's .env.example (envSchema.js).
 const EXAMPLE_PATH = process.env.ENV_EXAMPLE_PATH
   || path.join(process.env.PROJECT_DIR || '/project', '.env.example');
-// Эти ключи меняются только блоком «Доступ к панели» (со сменой пароля и перезапуском).
+// These keys change only through the panel access block (with a password change and a restart).
 const PANEL_MANAGED = ['PANEL_USER', 'PANEL_PASS'];
 
 function envGroups() {
@@ -85,7 +84,7 @@ app.post('/api/env', (req, res) => {
     const errors = {};
     for (const [k, v] of Object.entries(updates)) {
       if (!/^[A-Z][A-Z0-9_]*$/.test(k)) { errors[k] = 'недопустимое имя'; continue; }
-      if (String(v).includes('•')) continue; // нетронутый секрет
+      if (String(v).includes('•')) continue; // untouched secret
       const err = envSchema.validate(k, v, items.get(k));
       if (err) errors[k] = err;
     }
@@ -131,9 +130,9 @@ app.post('/api/faq', (req, res) => {
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// ---- ULTRAVOX: агенты RO/RU (правка, история, откат) ----
+// ---- ULTRAVOX: RO/RU agents (edit, history, rollback) ----
 const ultravox = require('./ultravox');
-// тулзы нужны и здесь: проверка промпта на соответствие включённым функциям
+// tools are needed here too, to check the prompt against the enabled features
 const uvTools = require('./ultravoxTools');
 const uvRoute = (fn) => async (req, res) => {
   try { res.json(await fn(envStore.readRaw(ENV_PATH), req)); }
@@ -162,7 +161,7 @@ app.post('/api/ultravox/agents/:lang/preview', uvRoute(async (env, req) => {
 }));
 app.post('/api/ultravox/agents/:lang/apply', uvRoute((env, req) =>
   ultravox.apply(env, req.params.lang, (req.body || {}).changes)));
-// Первый запуск: агент из образца в аккаунте ULTRAVOX_API_KEY, его ID — сразу в .env.
+// First run: create the agent from the template in the ULTRAVOX_API_KEY account and write its ID to .env.
 app.post('/api/ultravox/agents/:lang/create', uvRoute(async (env, req) => {
   const r = await ultravox.createAgent(env, req.params.lang, { writeEnv: true });
   envStore.applyUpdates(ENV_PATH, { [r.envKey]: r.agentId });
@@ -172,23 +171,23 @@ app.get('/api/ultravox/agents/:lang/history', uvRoute(async (env, req) => ({ his
 app.post('/api/ultravox/agents/:lang/restore', uvRoute((env, req) =>
   ultravox.restore(env, req.params.lang, (req.body || {}).file, { dryRun: !!(req.body || {}).dryRun })));
 
-// ---- ULTRAVOX: тулзы (сверка с шаблонами ultravox/tools.json, синхронизация) ----
+// ---- ULTRAVOX: tools (compare with the ultravox/tools.json templates, sync) ----
 app.get('/api/ultravox/tools', uvRoute((env) => uvTools.status(env)));
 app.post('/api/ultravox/tools/sync', uvRoute((env, req) => uvTools.sync(env, { dryRun: !!(req.body || {}).dryRun })));
 app.post('/api/ultravox/tools/:name', uvRoute(async (env, req) => uvTools.saveOverride(req.params.name, req.body || {})));
 
-// ---- СПРАВКА: текст guide.md и чек-лист первого запуска ----
+// ---- GUIDE: guide.md text and the first-run checklist ----
 const guide = require('./guide');
 app.get('/api/guide', (req, res) => res.json({ markdown: guide.text() }));
 app.get('/api/guide/status', uvRoute((env) => guide.status(env)));
 
-// ---- ЖУРНАЛ ДЕЙСТВИЙ (instance/audit.log) ----
+// ---- AUDIT LOG (instance/audit.log) ----
 app.get('/api/audit', (req, res) => res.json({ entries: security.readAudit(Math.min(Number(req.query.limit) || 50, 500)) }));
 
-// ---- CONFIG (для фронта: ссылка на Ultravox и пр.) ----
+// ---- CONFIG (for the frontend: Ultravox link etc.) ----
 app.get('/api/config', (req, res) => res.json({ ultravoxUrl: ULTRAVOX_URL }));
 
-// ---- SETTINGS (режим уведомлений и пр.) ----
+// ---- SETTINGS (notification mode etc.) ----
 app.get('/api/settings', (req, res) => res.json(readSettings()));
 app.post('/api/settings', (req, res) => {
   const mode = req.body && req.body.notifyMode;
@@ -196,8 +195,8 @@ app.post('/api/settings', (req, res) => {
   res.json(writeSettings({ notifyMode: mode }));
 });
 
-// ---- APPLY .env: что устарело (сервисы, тулзы Ultravox) и применить ----
-// Сервисы сравниваются с тем, с чем реально запущены (applyPlan.js); пересоздаются только нужные.
+// ---- APPLY .env: what is stale (services, Ultravox tools), and apply it ----
+// Services are compared with what they actually run with (applyPlan.js); only the ones that need it are recreated.
 const applyPlan = require('./applyPlan');
 app.get('/api/apply/plan', uvRoute(async (env) => {
   const p = await applyPlan.plan(env, uvTools);
@@ -209,10 +208,10 @@ app.get('/api/apply/plan', uvRoute(async (env) => {
 }));
 app.post('/api/apply', uvRoute(async (env) => applyPlan.execute(env, uvTools)));
 
-// ---- СМЕНА ДОСТУПА К ПАНЕЛИ (само-перезапуск) ----
-// Панель не может пересоздать себя синхронно (убьёт запрос). Поэтому:
-// 1) пишем новые PANEL_USER/PANEL_PASS в .env, 2) отвечаем браузеру, 3) через паузу
-// в фоне пересоздаём admin-panel через compose — ответ к тому моменту уже доставлен.
+// ---- PANEL ACCESS CHANGE (self-restart) ----
+// The panel cannot recreate itself synchronously (that would kill the request). So:
+// 1) write the new PANEL_USER/PANEL_PASS to .env, 2) answer the browser, 3) after a pause
+// recreate admin-panel via compose in the background; by then the response has been delivered.
 app.post('/api/panel-auth', (req, res) => {
   const { user, pass } = req.body || {};
   if (!pass || String(pass).length < 8) return res.status(400).json({ error: 'пароль минимум 8 символов' });
@@ -221,21 +220,21 @@ app.post('/api/panel-auth', (req, res) => {
   try {
     envStore.applyUpdates(ENV_PATH, updates);
   } catch (e) { return res.status(500).json({ error: e.message }); }
-  // Пересоздаёт отдельный контейнер (см. applyPlan.recreateSelf): изнутри панель себя не пересоздаст.
+  // A separate container does the recreation (see applyPlan.recreateSelf): the panel cannot recreate itself from inside.
   applyPlan.recreateSelf()
     .then(() => { console.log('[panel-auth] панель будет пересоздана с новым доступом'); res.json({ ok: true, restarting: true }); })
     .catch((e) => { console.error('[panel-auth] пересоздать панель не удалось:', e.message); res.status(500).json({ error: 'доступ записан в .env, но панель не перезапустилась: ' + e.message }); });
 });
 
-// ---- STATUS контейнеров (реальный аптайм, чтобы видеть результат рестарта в UI) ----
+// ---- Container STATUS (real uptime, so the UI shows the result of a restart) ----
 app.get('/api/status', (req, res) => {
   const { dir, files } = composePrefix();
   exec(`cd ${dir} && docker compose ${files} ps --format json`, { timeout: 20000, env: applyPlan.CLEAN_ENV() }, (err, stdout) => {
-    if (err) return res.json({ status: {} }); // не валим страницу, просто без статусов
+    if (err) return res.json({ status: {} }); // don't fail the page, just show no statuses
     const map = {};
     const ingest = (o) => { if (o && o.Service) map[o.Service] = o.Status || o.State || ''; };
     const text = (stdout || '').trim();
-    // compose может отдать либо по одному JSON на строку, либо массивом
+    // compose may return either one JSON object per line or an array
     if (text.startsWith('[')) {
       try { JSON.parse(text).forEach(ingest); } catch (_) {}
     } else {
@@ -253,8 +252,8 @@ app.get('/api/health', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ---- RESTART / REBUILD контейнеров через compose ----
-// Все сервисы проекта. admin-panel обрабатывается особо (само-операция в фоне).
+// ---- RESTART / REBUILD containers via compose ----
+// All project services. admin-panel is handled separately (self-operation in the background).
 const MANAGEABLE = ['faq-server', 'network-diag', 'avr-asterisk', 'avr-sts-ultravox', 'avr-sts-ultravox-ru', 'avr-core', 'avr-core-ru', 'avr-ami', 'admin-panel'];
 function composePrefix() {
   const dir = process.env.PROJECT_DIR || '/project';
@@ -262,14 +261,14 @@ function composePrefix() {
     .split(':').map((f) => `-f ${f}`).join(' ');
   return { dir, files };
 }
-// Общий обработчик: action = 'restart' (передёрнуть) | 'rebuild' (up -d --build --force-recreate).
+// Shared handler: action = 'restart' | 'rebuild' (up -d --build --force-recreate).
 function runContainerAction(action, s, res) {
   if (!MANAGEABLE.includes(s)) return res.status(400).json({ error: 'сервис не в списке' });
   const { dir, files } = composePrefix();
   const cmd = action === 'rebuild'
     ? `cd ${dir} && docker compose --env-file .env ${files} up -d --build --force-recreate ${s}`
     : `cd ${dir} && docker compose ${files} restart ${s}`;
-  // admin-panel не может пересоздать сама себя — это делает отдельный контейнер (applyPlan.recreateSelf).
+  // admin-panel cannot recreate itself; a separate container does it (applyPlan.recreateSelf).
   if (s === 'admin-panel') {
     applyPlan.recreateSelf({ build: action === 'rebuild' })
       .then(() => res.json({ ok: true, service: s, action, background: true }))
@@ -312,7 +311,7 @@ function formatReport(results, title) {
   return head + '\n\n' + lines.join('\n');
 }
 
-// Ручной прогон с отправкой в Telegram
+// Manual run that also sends to Telegram
 app.post('/api/check-now', async (req, res) => {
   const env = envStore.readRaw(ENV_PATH);
   const results = await runAll(env);
@@ -320,7 +319,7 @@ app.post('/api/check-now', async (req, res) => {
   res.json({ ts: new Date().toISOString(), results });
 });
 
-// ---- CRON: ежедневно в 08:00 ----
+// ---- CRON: daily health report (HEALTH_REPORT_CRON, 08:00 by default) ----
 const TZ = process.env.CRON_TZ || 'UTC';
 const HEALTH_CRON = process.env.HEALTH_REPORT_CRON || '0 8 * * *';
 cron.schedule(HEALTH_CRON, async () => {
@@ -331,7 +330,7 @@ cron.schedule(HEALTH_CRON, async () => {
   console.log(`[cron ${HEALTH_CRON}] проверка: ${results.length - down.length}/${results.length} ok`
     + (down.length ? `; упало: ${down.map((d) => d.id).join(', ')}` : '')
     + `; режим=${mode}`);
-  // 'problems' — шлём только если что-то красное; 'always' — шлём всегда.
+  // 'problems': send only if something is red; 'always': send every time.
   if (mode === 'problems' && down.length === 0) return;
   if (down.some((d) => d.id === 'telegram')) {
     console.error(`[cron ${HEALTH_CRON}] ВНИМАНИЕ: сам Telegram помечен как упавший — `

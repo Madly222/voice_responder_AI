@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-diag_report.py — список устройств, на которые НЕ удалось войти под NETWORK_USER.
+diag_report.py: lists devices where logging in as NETWORK_USER FAILED.
 
-Берёт последний ~/avr-infra_diag_probe_*.csv (от scripts/diag_probe.py),
-группирует по устройству (у одного устройства может быть несколько IP)
-и по причине. Устройство считается рабочим, если вход прошёл хотя бы по одному IP.
+Takes the latest ~/avr-infra_diag_probe_*.csv (from scripts/diag_probe.py),
+groups it by device (one device may have several IPs) and by reason.
+A device counts as working if login succeeded on at least one IP.
 
-Запуск из ~/avr-infra:
+Run from ~/avr-infra:
     python3 scripts/diag_report.py
     python3 scripts/diag_report.py --csv ~/avr-infra_diag_probe_20260921_1228.csv
 """
@@ -67,7 +67,7 @@ def main():
         if any(reason(r) is None for r in rs):
             ok.append(dev)
             continue
-        # причина — по «лучшему» IP (open важнее refused, refused важнее timeout)
+        # reason comes from the "best" IP (open beats refused, refused beats timeout)
         best = min(rs, key=lambda r: ORDER.index(reason(r)))
         groups[reason(best)].append((dev, best["vendor"], [r["ip"] for r in rs]))
 
