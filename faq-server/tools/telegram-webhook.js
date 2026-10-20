@@ -1,6 +1,5 @@
 const axios = require('axios');
 
-// Configuration from .env
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
 const TELEGRAM_TIMEOUT_MS = Number(process.env.TELEGRAM_TIMEOUT_MS) || 10000;
@@ -72,7 +71,6 @@ async function sendCallbackAlert(chatbotData) {
     return { error: false, skipped: true };
   }
   
-  // Only send if callback is actually needed
   if (!chatbotData.needs_callback) {
     return { error: false, skipped: true, message: 'No callback needed' };
   }

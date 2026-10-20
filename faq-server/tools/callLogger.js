@@ -306,7 +306,6 @@ function endCall(params) {
   };
 }
 
-// ============== NEW FUNCTION ==============
 function checkRecentCall(params) {
   const { phone, within_minutes = 60 } = params;
   
@@ -314,7 +313,6 @@ function checkRecentCall(params) {
     return { error: true, message: 'Phone number required' };
   }
   
-  // Normalize phone (remove spaces, dashes, +)
   const normalizedPhone = phone.replace(/[\s\-\+\(\)]/g, '');
   
   try {
@@ -337,7 +335,6 @@ function checkRecentCall(params) {
     for (const callBlock of calls) {
       if (!callBlock.trim()) continue;
       
-      // Extract phone
       const phoneMatch = callBlock.match(/Phone:\s*(\S+)/);
       if (!phoneMatch) continue;
       
@@ -360,7 +357,6 @@ function checkRecentCall(params) {
       const callDate = new Date(year, month - 1, day, hours, minutes);
       
       if (callDate >= cutoffTime) {
-        // Found recent call!
         const minutesAgo = Math.round((Date.now() - callDate.getTime()) / 60000);
         
         console.log(`[CallLogger] Recent call found for ${normalizedPhone}: ${minutesAgo} minutes ago`);
@@ -395,7 +391,6 @@ function checkRecentCall(params) {
     return { error: true, message: err.message };
   }
 }
-// ==========================================
 
 function formatCallForFile(call) {
   let entry = `Call: ${call.number}\n`;
@@ -718,7 +713,6 @@ module.exports = {
     parameters: { type: 'object', properties: {}, required: [] },
     execute: getCalls
   },
-  // ============== NEW ==============
   checkRecentCall: {
     name: 'checkRecentCall',
     description: 'Check if there was a recent call from this phone number within specified time window',
@@ -732,5 +726,4 @@ module.exports = {
     },
     execute: checkRecentCall
   }
-  // =================================
 };

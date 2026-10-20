@@ -88,7 +88,6 @@ const SYNONYMS = {
   }
 };
 
-// Normalize text (remove diacritics, lowercase)
 function normalize(text) {
   if (!text) return '';
   return text
@@ -105,7 +104,6 @@ function normalize(text) {
     .trim();
 }
 
-// Remove stop words from word array
 function removeStopWords(words, lang) {
   const stopWords = STOP_WORDS[lang] || [];
   const stopWordsNormalized = new Set(stopWords.map(w => normalize(w)));
@@ -114,12 +112,10 @@ function removeStopWords(words, lang) {
     // Don't remove short important words
     if (word.length <= 2) return true;
     
-    // Remove stop words
     return !stopWordsNormalized.has(word);
   });
 }
 
-// Expand query with synonyms
 function expandWithSynonyms(text, lang) {
   const normalized = normalize(text);
   const words = normalized.split(' ').filter(w => w.length > 0);
@@ -130,12 +126,10 @@ function expandWithSynonyms(text, lang) {
 
   if (!SYNONYMS[lang]) return Array.from(expandedWords);
 
-  // For each word, find synonyms
   for (const word of cleanWords) {
     for (const [key, synonyms] of Object.entries(SYNONYMS[lang])) {
       const keyNorm = normalize(key);
 
-      // If word matches key or one of its synonyms
       if (word === keyNorm || synonyms.some(s => normalize(s) === word)) {
         expandedWords.add(keyNorm);
         synonyms.forEach(s => expandedWords.add(normalize(s)));
@@ -146,7 +140,6 @@ function expandWithSynonyms(text, lang) {
   return Array.from(expandedWords);
 }
 
-// Enhanced keyword matching with weights
 function matchKeywords(queryWords, keywords, lang) {
   if (!keywords || !Array.isArray(keywords)) return 0;
 
@@ -157,16 +150,13 @@ function matchKeywords(queryWords, keywords, lang) {
     const kwNorm = normalize(keyword);
     const kwWords = kwNorm.split(' ').filter(w => w.length > 0);
 
-    // Remove stop words from keywords
     const cleanKwWords = removeStopWords(kwWords, lang);
 
-    // Check for exact phrase match
     if (queryWords.join(' ').includes(kwNorm)) {
       score += cleanKwWords.length * 10; // big bonus for exact phrase match
       continue;
     }
 
-    // Check individual word matches
     let matchedWords = 0;
     for (const kwWord of cleanKwWords) {
       if (querySet.has(kwWord)) {
@@ -174,7 +164,6 @@ function matchKeywords(queryWords, keywords, lang) {
       }
     }
 
-    // If all words from keyword matched
     if (matchedWords === cleanKwWords.length && cleanKwWords.length > 0) {
       score += cleanKwWords.length * 5; // all words matched
     } else if (matchedWords > 0) {
@@ -185,7 +174,6 @@ function matchKeywords(queryWords, keywords, lang) {
   return score;
 }
 
-// Main search function
 function searchFAQ(params) {
   const { query, lang = 'ro' } = params;
 
@@ -206,10 +194,8 @@ function searchFAQ(params) {
     const keywords = item.keywords[lang] || item.keywords['ro'] || [];
     const keywordsRequired = item.keywords_required ? (item.keywords_required[lang] || []) : [];
 
-    // Calculate main score
     const mainScore = matchKeywords(queryWords, keywords, lang);
 
-    // Check required keywords
     let requiredScore = 0;
     let hasAllRequired = keywordsRequired.length === 0;
 
@@ -223,7 +209,6 @@ function searchFAQ(params) {
       continue;
     }
 
-    // Total score
     let totalScore = mainScore + requiredScore * 3; // required keywords weigh even more
 
     if (totalScore > bestScore) {
@@ -232,7 +217,6 @@ function searchFAQ(params) {
     }
   }
 
-  // Minimum threshold for match
   const MIN_SCORE = 3;
 
   if (bestMatch && bestScore >= MIN_SCORE) {
