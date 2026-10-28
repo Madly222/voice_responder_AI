@@ -458,8 +458,15 @@ function esc(v) {
 
 // CLIENT problems: anything that actually keeps them from using the service.
 // Debt is NOT included: we do not cut service immediately for non-payment.
+// Billing answered but has no client with this number: not a failure on our side,
+// the number was given wrong or misheard.
+const clientNotFound = (call) => !!(call.osmp_id && !call.client_name && !call.whmcs_error);
+
 function generateProblems(call) {
   const out = [];
+  if (clientNotFound(call)) {
+    out.push(`${providers().CLIENT_ID_LABEL} ${call.osmp_id} not found in billing - wrong code given or misheard, client not identified`);
+  }
   if (call.is_active === false) out.push('Contract not active - service disconnected');
   if (call.port_status === 'down') out.push('Port on switch is DOWN - technician required');
   if (call.mac_found === false) {
@@ -485,8 +492,6 @@ function generateSystemErrors(call) {
   if (call.diag_error) out.push('Diagnostics: ' + call.diag_error);
   if (call.client_ip && !call.mac_address && !call.switch_ip)
     out.push(`${providers().networkLabel()}: IP ${call.client_ip} has no switch/port data`);
-  if (call.osmp_id && !call.client_name && !call.whmcs_error)
-    out.push(`${providers().billingLabel()}: ${providers().CLIENT_ID_LABEL} not found in billing`);
   if (call.mac_address && call.switch_ip && call.port_status === null && call.mac_found === null && !call.diag_error)
     out.push('Diagnostics: not performed (no result from switch)');
   return out;
@@ -551,15 +556,29 @@ function formatCallForChatbot(call) {
   }
 
   L.push(SEP);
-  // Client: compact, one line per fact
-  L.push('\u{1F464} ' + link(whmcsClientUrl(call), esc(call.client_name))
-    + (call.client_type ? '  \u00B7  ' + esc(call.client_type) : ''));
-  L.push('\u{1F4B3} ' + esc(providers().CLIENT_ID_LABEL) + ' ' + esc(call.osmp_id)
-    + '  \u00B7  ' + (call.is_active === false ? '\u274C inactive' : '\u2705 active')
-    + '  \u00B7  ' + (call.is_paid === false ? '\u{1F4B0} debt' : '\u{1F4B0} paid'));
-  L.push('\u{1F4CD} ' + esc(call.address));
-  L.push('\u{1F310} ' + link(netboxIpUrl(call), esc(call.client_ip))
-    + '  \u00B7  \u{1F527} ' + esc(call.mac_address));
+  // Client: compact, one line per fact. Unknown is shown as n/a, never as OK;
+  // empty lines (address, network, diagnostics) are skipped.
+  const idLabel = esc(providers().CLIENT_ID_LABEL);
+  if (!call.client_name) {
+    L.push('\u{1F464} <i>client not identified</i>');
+    L.push('\u{1F4B3} ' + (call.osmp_id
+      ? idLabel + ' ' + esc(call.osmp_id) + '  ·  '
+        + (clientNotFound(call) ? '❌ not found in billing' : '❔ billing check failed')
+      : idLabel + ' <i>not given</i>'));
+  } else {
+    L.push('\u{1F464} ' + link(whmcsClientUrl(call), esc(call.client_name))
+      + (call.client_type ? '  ·  ' + esc(call.client_type) : ''));
+    const active = call.is_active === true ? '✅ active'
+      : call.is_active === false ? '❌ inactive' : '❔ status n/a';
+    const paid = call.is_paid === true ? '\u{1F4B0} paid'
+      : call.is_paid === false ? '❗ debt' : '❔ payment n/a';
+    L.push('\u{1F4B3} ' + idLabel + ' ' + esc(call.osmp_id) + '  ·  ' + active + '  ·  ' + paid);
+    if (call.address) L.push('\u{1F4CD} ' + esc(call.address));
+  }
+  if (call.client_ip || call.mac_address) {
+    L.push('\u{1F310} ' + link(netboxIpUrl(call), esc(call.client_ip))
+      + '  ·  \u{1F527} ' + esc(call.mac_address));
+  }
   if (call.switch_name || call.switch_ip || call.port) {
     const parts = [];
     if (call.switch_name) parts.push(link(netboxDeviceUrl(call), esc(call.switch_name)));
@@ -568,14 +587,19 @@ function formatCallForChatbot(call) {
     L.push('\u{1F5A7} ' + (parts.join('  \u00B7  ') || '-'));
   }
 
+  // Only when the line check was actually reached
+  const diagTried = call.switch_ip || call.mac_address || call.port_status != null
+    || call.mac_found != null || call.diag_error || call.has_power != null || call.router_rebooted != null;
+  if (diagTried) {
   const portTxt = call.port_status === 'up' ? '\u2705 port up'
     : call.port_status === 'down' ? '\u274C port down' : '\u2753 port n/a';
   const macTxt = call.mac_found === true ? '\u2705 MAC found'
     : call.mac_found === false ? '\u274C MAC not found' : '\u2753 MAC n/a';
   const extra = [];
-  if (call.has_power !== null) extra.push((call.has_power ? '\u2705' : '\u274C') + ' power');
-  if (call.router_rebooted !== null) extra.push((call.router_rebooted ? '\u2705' : '\u274C') + ' reboot');
+  if (call.has_power != null) extra.push((call.has_power ? '\u2705' : '\u274C') + ' power');
+  if (call.router_rebooted != null) extra.push((call.router_rebooted ? '\u2705' : '\u274C') + ' reboot');
   L.push('\u{1F50C} ' + [portTxt, macTxt].concat(extra).join('  \u00B7  '));
+  }
 
   return {
     text: L.join('\n'),
