@@ -25,8 +25,11 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Tool names from before the client-ID rename, still used by Ultravox agents that were not re-synced.
+const TOOL_ALIASES = { findByOSMP: 'findByClientId' };
+
 app.post('/tool/:name', async (req, res) => {
-  const { name } = req.params;
+  const name = TOOL_ALIASES[req.params.name] || req.params.name;
   if (!tools[name]) return res.status(404).json({ error: `Tool "${name}" not found` });
   try {
     // P-02: Ultravox call ID (automatic tool parameter) -> our call.

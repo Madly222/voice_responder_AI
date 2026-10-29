@@ -19,7 +19,7 @@ FAQ = Path(__file__).resolve().parents[1] / 'faq-server' / 'data' / 'faq.json'
 NEW = [
     {
         "id": "service_not_working",
-        "requires_osmp": True,
+        "requires_client_id": True,
         "keywords": {
             "ro": ["nu merge youtube", "nu se deschide youtube", "nu merge facebook",
                    "nu merge whatsapp", "nu merge instagram", "nu merge netflix",
@@ -33,13 +33,13 @@ NEW = [
                    "не работает вайбер", "не открывается страница"]
         },
         "answers": {
-            "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-            "ru": "Давайте проверим ваше подключение. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+            "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+            "ru": "Давайте проверим ваше подключение. Назовите, пожалуйста, номер клиента из счёт-фактуры."
         }
     },
     {
         "id": "wifi_not_working",
-        "requires_osmp": True,
+        "requires_client_id": True,
         "keywords": {
             "ro": ["nu merge wifi", "nu functioneaza wifi", "nu se conecteaza la wifi",
                    "wifi fara internet", "nu vad reteaua wifi", "s-a pierdut wifi",
@@ -49,13 +49,13 @@ NEW = [
                    "не работает роутер"]
         },
         "answers": {
-            "ro": "Verificăm conexiunea și echipamentul dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-            "ru": "Проверим подключение и оборудование. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+            "ro": "Verificăm conexiunea și echipamentul dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+            "ru": "Проверим подключение и оборудование. Назовите, пожалуйста, номер клиента из счёт-фактуры."
         }
     },
     {
         "id": "intermittent_internet",
-        "requires_osmp": True,
+        "requires_client_id": True,
         "keywords": {
             "ro": ["se intrerupe internetul", "cade internetul", "internetul se deconecteaza",
                    "merge cu intreruperi", "se pierde conexiunea", "internetul pica des",
@@ -64,13 +64,13 @@ NEW = [
                    "связь обрывается", "интернет падает", "нестабильное соединение"]
         },
         "answers": {
-            "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-            "ru": "Проверим ваше подключение. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+            "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+            "ru": "Проверим ваше подключение. Назовите, пожалуйста, номер клиента из счёт-фактуры."
         }
     },
     {
         "id": "working_hours",
-        "requires_osmp": False,
+        "requires_client_id": False,
         "keywords": {
             "ro": ["programul de lucru", "program de lucru", "pana la ce ora lucrati",
                    "de la ce ora lucrati", "cand sunteti deschisi", "lucrati sambata",

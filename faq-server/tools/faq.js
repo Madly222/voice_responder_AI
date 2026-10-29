@@ -231,7 +231,9 @@ function searchFAQ(params) {
         answer: answer,
         score: bestScore, // for debugging
         tool: bestMatch.tool || null,
-        requires_osmp: bestMatch.requires_osmp || false
+        requires_client_id: bestMatch.requires_client_id ?? bestMatch.requires_osmp ?? false,
+        // Same flag under its pre-rename name, for agent prompts not yet updated (MIGRATION.md §9).
+        requires_osmp: bestMatch.requires_client_id ?? bestMatch.requires_osmp ?? false
       }
     };
   }

@@ -2,7 +2,7 @@
  * ultravoxTranscript.js: the second (fallback) source of the caller's phrase.
  *
  * The first source is the query parameter of the searchFAQ tool. But the agent may never call searchFAQ
- * (it answered on its own or went straight to OSMP and diagnostics), leaving nothing to show in Telegram.
+ * (it answered on its own or went straight to the client ID and diagnostics), leaving nothing to show in Telegram.
  * Here we take the caller's lines from the Ultravox call transcript via their API:
  * the data is ready-made, so no LLM or extra tokens are needed.
  *
@@ -89,7 +89,7 @@ async function getUserUtterances(startIso, endIso, lang, uvCallId) {
     for (const m of items) {
       if (!isUser(m.role)) continue;
       const t = pickText(m).slice(0, 300);
-      // drop "алло", "да", OSMP digits and other short confirmations
+      // drop "алло", "да", client ID digits and other short confirmations
       if (t.length < 8 || /^[\d\s+()-]+$/.test(t)) continue;
       if (!out.includes(t)) out.push(t);
       if (out.length >= MAX_UTTERANCES) break;

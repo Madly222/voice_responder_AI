@@ -73,7 +73,7 @@ const CHECKS = [
     id: 'whmcs',
     label: 'Биллинг (WHMCS)',
     group: 'Интеграции',
-    help: 'Биллинг. По номеру OSMP бот находит клиента (имя, IP, активен, оплачен). Красный → бот не опознаёт клиента. КАК УСТРОЕНО: связка — это PHP-файл на сервере биллинга (НЕ в проекте), путь к нему задан в .env → WHMCS_CUSTOM_API. Внутри файла: allowed_ips = IP машины с проектом (откуда идут запросы); api_key должен совпадать с WHMCS_API_KEY из .env; поле OSMP в базе = custom field клиента (id поля и групп клиентов — из настроек своего WHMCS). Если красный после переноса — проверь эти четыре вещи. Подробности — PROJECT.md, раздел 5.1 «WHMCS».',
+    help: 'Биллинг. По ID клиента бот находит клиента (имя, IP, активен, оплачен). Красный → бот не опознаёт клиента. КАК УСТРОЕНО: связка — это PHP-файл на сервере биллинга (НЕ в проекте), путь к нему задан в .env → WHMCS_CUSTOM_API. Внутри файла: allowed_ips = IP машины с проектом (откуда идут запросы); api_key должен совпадать с WHMCS_API_KEY из .env; поле ID клиента в базе = custom field клиента (id поля и групп клиентов — из настроек своего WHMCS). Если красный после переноса — проверь эти четыре вещи. Подробности — PROJECT.md, раздел 5.1 «WHMCS».',
     envKeys: ['BILLING_PROVIDER', 'WHMCS_CUSTOM_API', 'WHMCS_API_KEY'],
     async run(env) {
       if ((env.BILLING_PROVIDER || 'none').toLowerCase() !== 'whmcs')
@@ -81,12 +81,16 @@ const CHECKS = [
       const base = env.WHMCS_CUSTOM_API;
       if (!base) return { ok: false, detail: 'WHMCS_CUSTOM_API не задан' };
       // A real check: send an actual request with api_key and parse the answer
-      // instead of just pinging the server. OSMP 00000 never exists; what matters is not the client
+      // instead of just pinging the server. Client ID 00000 never exists; what matters is not the client
       // but that PHP ran, the key was accepted and the DB answered.
       let r;
       try {
         r = await axios.get(base, {
-          params: { api_key: env.WHMCS_API_KEY || '', action: 'find_by_osmp', osmp_id: '00000' },
+          params: {
+            api_key: env.WHMCS_API_KEY || '',
+            action: env.WHMCS_FIND_ACTION || 'find_by_osmp',
+            [env.WHMCS_ID_PARAM || 'osmp_id']: '00000',
+          },
           timeout: TIMEOUT, validateStatus: () => true,
         });
       } catch (e) { return { ok: false, detail: `сервер недоступен (${e.code || e.message})` }; }

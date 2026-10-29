@@ -30,7 +30,7 @@
 | Приветствие (First speaker, uninterruptible) | «Bună ziua, vă salută asistentul virtual ExampleNet, un sistem de inteligență artificială. Cu ce vă pot ajuta?» | «Здравствуйте, вас приветствует виртуальный помощник ExampleNet — это система искусственного интеллекта. Чем могу помочь?» |
 | Модель | `ultravox-v0.7` | то же |
 | Max duration | 300 s | то же |
-| Подключённые тулзы | `searchFAQ`, `findByOSMP`, `getNetworkData`, `diagnoseClient`, `updateCall` (+ встроенные, §4) | те же самые тулзы |
+| Подключённые тулзы | `searchFAQ`, `findByClientId`, `getNetworkData`, `diagnoseClient`, `updateCall` (+ встроенные, §4) | те же самые тулзы |
 
 RU-агент создан копией RO скриптом `scripts/ultravox_agent_clone.py` (§6): модель, тулзы, VAD и
 длительность скопированы как есть. Правки общих настроек (VAD, тулзы, модель) делать в **обоих** агентах.
@@ -41,7 +41,7 @@ RU-агент создан копией RO скриптом `scripts/ultravox_ag
 история и откат — `instance/ultravox/history/`). Файлы **`ultravox/prompts/ro.md`** и **`ultravox/prompts/ru.md`**
 в репозитории — **образцы** (для новой установки; дашборд Ultravox при вставке убирает разметку Markdown —
 это нормально). Промпт должен соответствовать включённым функциям: если включён биллинг — описывать
-`findByOSMP` (OSMP), если учёт сети — `getNetworkData` и `diagnoseClient`; панель предупреждает о расхождении.
+`findByClientId` (ID клиента), если учёт сети — `getNetworkData` и `diagnoseClient`; панель предупреждает о расхождении.
 Логику менять синхронно в обоих агентах: RU —
 перевод RO один в один, без упоминаний румынского (кроме значений `client_type` из WHMCS —
 `"Persoane Juridice"` / `"Persoane Fizice"`, их агент не произносит).
@@ -95,7 +95,7 @@ RU-агент создан копией RO скриптом `scripts/ultravox_ag
 Search the ExampleNet support FAQ. Call it for any caller question or problem before answering yourself.
 query: the caller's question in their own words. lang: "ro" or "ru" (the caller's language).
 Result: if data.found, say data.answer naturally in the caller's language, without adding details.
-If data.requires_osmp, ask for the 5-digit OSMP code from the invoice, then call findByOSMP.
+If data.requires_client_id, ask for the 5-digit Client ID from the invoice, then call findByClientId.
 If not found or error, do not guess: offer a callback from a specialist.
 ```
 
@@ -105,20 +105,20 @@ If not found or error, do not guess: offer a callback from a specialist.
 | Dynamic | `lang` | Body | string | yes | Language code: 'ro' for Romanian or 'ru' for Russian |
 | Static | `X-AVR-Key` | Header | — | — | ключ с сервера |
 
-Ответ: `{"error":false,"data":{"found":true,"id":"no_internet","answer":"…","score":57,"tool":null,"requires_osmp":true}}`
+Ответ: `{"error":false,"data":{"found":true,"id":"no_internet","answer":"…","score":57,"tool":null,"requires_client_id":true}}`
 или `{"found":false,"answer":null,"best_score":N}`.
 
-### 3.2. findByOSMP
+### 3.2. findByClientId
 
 | Поле | Значение |
 |---|---|
-| URL | `https://avr.example.com:8443/tool/findByOSMP` |
+| URL | `https://avr.example.com:8443/tool/findByClientId` |
 | Timeout | 15 s (WHMCS отвечает до 15 с) |
 | Precomputable | No (пишет в карточку звонка) |
 
 **Description:**
 ```text
-Find the caller in the billing system by OSMP code. Call it after the caller gives their OSMP code (exactly 5 digits, from the invoice).
+Find the caller in the billing system by Client ID. Call it after the caller gives their Client ID (exactly 5 digits, from the invoice).
 Returns client_name, client_type, client_ip, is_active (service active), is_paid (no unpaid invoices).
 If data.found is false or the code is invalid, ask the caller to repeat the code once; if still not found, offer a callback.
 If is_active is false or is_paid is false, tell the caller politely (contract inactive / unpaid invoice) before any technical check.
@@ -127,7 +127,7 @@ If client_ip is empty, do not call getNetworkData; offer a callback from a techn
 
 | Тип | Name | Location | Type | Required | Description |
 |---|---|---|---|---|---|
-| Dynamic | `osmp_id` | Body | string | yes | Client OSMP code, exactly 5 digits |
+| Dynamic | `client_number` | Body | string | yes | Client ID, exactly 5 digits |
 | Static | `X-AVR-Key` | Header | — | — | ключ с сервера |
 
 ### 3.3. getNetworkData
@@ -140,7 +140,7 @@ If client_ip is empty, do not call getNetworkData; offer a callback from a techn
 
 **Description:**
 ```text
-Get the client's network data from NetBox by the client IP returned by findByOSMP.
+Get the client's network data from NetBox by the client IP returned by findByClientId.
 Returns mac_address, switch_name, switch_ip, port, pop.
 Call diagnoseClient only if switch_ip AND mac_address are present. Never use the client IP as switch_ip.
 If switch_ip or mac_address is empty, do not run diagnostics: tell the caller a technician will check the line and offer a callback.
@@ -148,7 +148,7 @@ If switch_ip or mac_address is empty, do not run diagnostics: tell the caller a 
 
 | Тип | Name | Location | Type | Required | Description |
 |---|---|---|---|---|---|
-| Dynamic | `client_ip` | Body | string | yes | Client IP address from findByOSMP |
+| Dynamic | `client_ip` | Body | string | yes | Client IP address from findByClientId |
 | Static | `X-AVR-Key` | Header | — | — | ключ с сервера |
 
 ### 3.4. diagnoseClient
@@ -202,7 +202,7 @@ Set needs_callback true (with callback_reason) whenever you promise the caller a
 | `resolution` | string | что сказали/порекомендовали клиенту |
 | `call_id` | string | `latest` (текущий звонок) |
 | `phone` | string | номер звонящего |
-| `osmp_id` | string | OSMP клиента |
+| `client_number` | string | ID клиента |
 | `client_ip` | string | IP клиента |
 | `is_active` | boolean | услуга активна |
 | `is_paid` | boolean | нет долга |
@@ -247,7 +247,7 @@ SIP-логин/пароль в статических параметрах), `ha
 | Тулз | Тестовые параметры | Ожидаем |
 |---|---|---|
 | searchFAQ | `query`=`nu am internet`, `lang`=`ro` | 200, `"id":"no_internet"` |
-| findByOSMP | `osmp_id`=`12345` | 200, `"found":true` |
+| findByClientId | `client_number`=`12345` | 200, `"found":true` |
 | getNetworkData | `client_ip`=`198.51.100.25` | 200, данные NetBox |
 | diagnoseClient | `switch_ip`=`198.51.100.20`, `mac_address`=`00:11:22:33:44:55`, `port`=`Fa0/1` | 200, `"port_status":"up"` (~2 с) |
 | updateCall | `call_id`=`latest` | 200 (`No active calls` без звонка — нормально) |

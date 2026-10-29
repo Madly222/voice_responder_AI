@@ -36,7 +36,9 @@ function write(faqPath, data) {
   data.faq.forEach((e) => {
     e.keywords.ru = e.keywords.ru.map((s) => s.trim()).filter(Boolean);
     e.keywords.ro = e.keywords.ro.map((s) => s.trim()).filter(Boolean);
-    if (typeof e.requires_osmp !== 'boolean') delete e.requires_osmp;
+    if (typeof e.requires_client_id !== 'boolean' && typeof e.requires_osmp === 'boolean') e.requires_client_id = e.requires_osmp;
+    delete e.requires_osmp;
+    if (typeof e.requires_client_id !== 'boolean') delete e.requires_client_id;
   });
   fs.writeFileSync(faqPath, JSON.stringify(data, null, 2) + require('os').EOL);   // trailing newline, as git expects
   return { ok: true, count: data.faq.length };

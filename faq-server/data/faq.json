@@ -28,26 +28,26 @@
       }
     },
     {
-      "id": "osmp_location",
+      "id": "client_id_location",
       "keywords": {
         "ru": [
-          "где найти осмп",
-          "где код осмп",
-          "как узнать осмп",
-          "что такое осмп",
-          "номер осмп"
+          "где найти номер клиента",
+          "где номер договора",
+          "как узнать номер клиента",
+          "что такое номер клиента",
+          "номер клиента"
         ],
         "ro": [
-          "unde gasesc codul osmp",
-          "cum pot gasi codul osmp",
-          "unde e codul osmp",
-          "ce e osmp",
-          "numarul osmp"
+          "unde gasesc codul de client",
+          "cum pot gasi codul de client",
+          "unde e codul de client",
+          "ce e codul de client",
+          "numarul de client"
         ]
       },
       "answers": {
-        "ru": "Код ОСМП вы найдёте в вашей ежемесячной счёт-фактуре.",
-        "ro": "Codul OSMP îl găsiți în factura dumneavoastră lunară."
+        "ru": "Номер клиента вы найдёте в вашей ежемесячной счёт-фактуре.",
+        "ro": "Codul de client îl găsiți în factura dumneavoastră lunară."
       }
     },
     {
@@ -78,7 +78,7 @@
     },
     {
       "id": "no_internet",
-      "requires_osmp": true,
+      "requires_client_id": true,
       "keywords": {
         "ru": [
           "нет интернета",
@@ -98,13 +98,13 @@
         ]
       },
       "answers": {
-        "ru": "Для диагностики проблемы мне нужен ваш код ОСМП из счёт-фактуры.",
-        "ro": "Vă rugăm să ne spuneți codul OSMP din factura dumneavoastră ca să putem verifica."
+        "ru": "Для диагностики проблемы мне нужен ваш номер клиента из счёт-фактуры.",
+        "ro": "Vă rugăm să ne spuneți codul de client din factura dumneavoastră ca să putem verifica."
       }
     },
     {
       "id": "slow_internet",
-      "requires_osmp": true,
+      "requires_client_id": true,
       "keywords": {
         "ru": [
           "медленный интернет",
@@ -122,8 +122,8 @@
         ]
       },
       "answers": {
-        "ru": "Для проверки соединения мне нужен ваш код ОСМП из счёт-фактуры.",
-        "ro": "Vă rugăm să ne spuneți codul OSMP din factura dumneavoastră ca să putem verifica."
+        "ru": "Для проверки соединения мне нужен ваш номер клиента из счёт-фактуры.",
+        "ro": "Vă rugăm să ne spuneți codul de client din factura dumneavoastră ca să putem verifica."
       }
     },
     {
@@ -248,7 +248,7 @@
     },
     {
       "id": "service_not_working",
-      "requires_osmp": true,
+      "requires_client_id": true,
       "keywords": {
         "ro": [
           "nu merge youtube",
@@ -285,13 +285,13 @@
         ]
       },
       "answers": {
-        "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-        "ru": "Давайте проверим ваше подключение. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+        "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+        "ru": "Давайте проверим ваше подключение. Назовите, пожалуйста, номер клиента из счёт-фактуры."
       }
     },
     {
       "id": "wifi_not_working",
-      "requires_osmp": true,
+      "requires_client_id": true,
       "keywords": {
         "ro": [
           "nu merge wifi",
@@ -314,13 +314,13 @@
         ]
       },
       "answers": {
-        "ro": "Verificăm conexiunea și echipamentul dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-        "ru": "Проверим подключение и оборудование. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+        "ro": "Verificăm conexiunea și echipamentul dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+        "ru": "Проверим подключение и оборудование. Назовите, пожалуйста, номер клиента из счёт-фактуры."
       }
     },
     {
       "id": "intermittent_internet",
-      "requires_osmp": true,
+      "requires_client_id": true,
       "keywords": {
         "ro": [
           "se intrerupe internetul",
@@ -341,13 +341,13 @@
         ]
       },
       "answers": {
-        "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul OSMP din factură.",
-        "ru": "Проверим ваше подключение. Назовите, пожалуйста, код ОСМП из счёт-фактуры."
+        "ro": "Verificăm conexiunea dumneavoastră. Vă rugăm să ne spuneți codul de client din factură.",
+        "ru": "Проверим ваше подключение. Назовите, пожалуйста, номер клиента из счёт-фактуры."
       }
     },
     {
       "id": "working_hours",
-      "requires_osmp": false,
+      "requires_client_id": false,
       "keywords": {
         "ro": [
           "programul de lucru",

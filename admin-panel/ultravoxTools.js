@@ -33,7 +33,7 @@ function enabledFeature(env, requires) {
 function fill(text, env) {
   const vals = {
     COMPANY_NAME: env.COMPANY_NAME || 'our company',
-    CLIENT_ID_LABEL: env.CLIENT_ID_LABEL || 'OSMP',
+    CLIENT_ID_LABEL: env.CLIENT_ID_LABEL || 'Client ID',
     CLIENT_ID_FORMAT: env.CLIENT_ID_FORMAT || 'exactly 5 digits, from the invoice',
   };
   return String(text || '').replace(/\{(COMPANY_NAME|CLIENT_ID_LABEL|CLIENT_ID_FORMAT)\}/g, (m, k) => vals[k]);
@@ -261,7 +261,7 @@ function promptWarnings(env, prompt) {
     if (on && !mentioned) out.push(`промпт не упоминает ${t.name}` + (t.requires ? `, а ${what[t.requires]} включён` : '') + ' — агент может его не вызывать');
     if (!on && mentioned) out.push(`промпт упоминает ${t.name}, но ${what[t.requires]} выключен — уберите эти шаги из промпта`);
   }
-  const label = env.CLIENT_ID_LABEL || 'OSMP';
+  const label = env.CLIENT_ID_LABEL || 'Client ID';
   if (enabledFeature(env, 'billing') && !text.includes(label))
     out.push(`биллинг включён, а промпт не просит у клиента номер «${label}» (CLIENT_ID_LABEL)`);
   return out;

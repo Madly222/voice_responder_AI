@@ -8,7 +8,7 @@ async function loadFaq() {
   renderFaq();
 
   $('#addFaq').onclick = () => {
-    faqData.faq.push({ id:'', title:'', keywords:{ru:[],ro:[]}, answers:{ru:'',ro:''}, requires_osmp:false, _collapsed: false });
+    faqData.faq.push({ id:'', title:'', keywords:{ru:[],ro:[]}, answers:{ru:'',ro:''}, requires_client_id:false, _collapsed: false });
     renderFaq();
 
     toast('Новая запись добавлена в конец списка');
@@ -31,9 +31,9 @@ async function loadFaq() {
       + 'placeholder="Название сценария (напр. Pachete internet)">'
       + '<div class="faq-id">ID: <code>'+(e.id||'—')+'</code>'
       + '<label style="display:inline-flex;align-items:center;gap:5px;color:var(--tx)">'
-      + '<input type="checkbox" data-i="'+i+'" data-f="requires_osmp" '+(e.requires_osmp?'checked':'')+'> Требуется OSMP'
-      + '<span class="help">?<span class="bubble"><b>Требуется OSMP</b> — включи, если по этому вопросу '
-      + 'бот должен запросить OSMP и увести в диагностику (проблемы с подключением). '
+      + '<input type="checkbox" data-i="'+i+'" data-f="requires_client_id" '+(e.requires_client_id?'checked':'')+'> Требуется ID клиента'
+      + '<span class="help">?<span class="bubble"><b>Требуется ID клиента</b> — включи, если по этому вопросу '
+      + 'бот должен запросить ID клиента и увести в диагностику (проблемы с подключением). '
       + 'Для справочных вопросов (цены, график) — выключено.</span></span></label>'
       + '</div></div>'
       + '<button class="faq-del" data-del="'+i+'">Удалить</button>'
@@ -88,7 +88,7 @@ async function loadFaq() {
       const e = faqData.faq[+el.dataset.i]; const f = el.dataset.f;
       if (f==='id') e.id = el.value.trim();
       else if (f==='title') e.title = el.value.trim();
-      else if (f==='requires_osmp') e.requires_osmp = el.checked;
+      else if (f==='requires_client_id') e.requires_client_id = el.checked;
       else if (f==='kru') e.keywords.ru = el.value.split('\n');
       else if (f==='kro') e.keywords.ro = el.value.split('\n');
       else if (f==='aru') e.answers.ru = el.value;

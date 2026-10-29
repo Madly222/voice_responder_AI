@@ -6,7 +6,7 @@
       "requires": null,
       "path": "/tool/searchFAQ",
       "timeout": "15s",
-      "description": "Search the {COMPANY_NAME} support FAQ. Call it for any caller question or problem before answering yourself.\nquery: the caller's question in their own words. lang: \"ro\" or \"ru\" (the caller's language).\nResult: if data.found, say data.answer naturally in the caller's language, without adding details.\nIf data.requires_osmp, ask for the {CLIENT_ID_LABEL} code ({CLIENT_ID_FORMAT}), then call findByOSMP.\nIf not found or error, do not guess: offer a callback from a specialist.",
+      "description": "Search the {COMPANY_NAME} support FAQ. Call it for any caller question or problem before answering yourself.\nquery: the caller's question in their own words. lang: \"ro\" or \"ru\" (the caller's language).\nResult: if data.found, say data.answer naturally in the caller's language, without adding details.\nIf data.requires_client_id, ask for the {CLIENT_ID_LABEL} code ({CLIENT_ID_FORMAT}), then call findByClientId.\nIf not found or error, do not guess: offer a callback from a specialist.",
       "dynamicParameters": [
         {
           "name": "query",
@@ -30,14 +30,14 @@
       "precomputable": true
     },
     {
-      "name": "findByOSMP",
+      "name": "findByClientId",
       "requires": "billing",
-      "path": "/tool/findByOSMP",
+      "path": "/tool/findByClientId",
       "timeout": "15s",
       "description": "Find the caller in the billing system by {CLIENT_ID_LABEL} code. Call it after the caller gives their {CLIENT_ID_LABEL} code ({CLIENT_ID_FORMAT}).\nReturns client_name, client_type, client_ip, is_active (service active), is_paid (no unpaid invoices).\nIf data.found is false or the code is invalid, ask the caller to repeat the code once; if still not found, offer a callback.\nIf is_active is false or is_paid is false, tell the caller politely (contract inactive / unpaid invoice) before any technical check.\nIf client_ip is empty, do not call getNetworkData; offer a callback from a technician.",
       "dynamicParameters": [
         {
-          "name": "osmp_id",
+          "name": "client_number",
           "location": "PARAMETER_LOCATION_BODY",
           "schema": {
             "description": "Client {CLIENT_ID_LABEL} code, {CLIENT_ID_FORMAT}",
@@ -52,13 +52,13 @@
       "requires": "network",
       "path": "/tool/getNetworkData",
       "timeout": "15s",
-      "description": "Get the client's network data by the client IP returned by findByOSMP.\nReturns mac_address, switch_name, switch_ip, port, pop, can_diagnose.\nCall diagnoseClient only if can_diagnose is true (switch_ip AND mac_address are present). Never use the client IP as switch_ip.\nIf can_diagnose is false, do not run diagnostics: tell the caller a technician will check the line and offer a callback.",
+      "description": "Get the client's network data by the client IP returned by findByClientId.\nReturns mac_address, switch_name, switch_ip, port, pop, can_diagnose.\nCall diagnoseClient only if can_diagnose is true (switch_ip AND mac_address are present). Never use the client IP as switch_ip.\nIf can_diagnose is false, do not run diagnostics: tell the caller a technician will check the line and offer a callback.",
       "dynamicParameters": [
         {
           "name": "client_ip",
           "location": "PARAMETER_LOCATION_BODY",
           "schema": {
-            "description": "Client IP address from findByOSMP result",
+            "description": "Client IP address from findByClientId result",
             "type": "string"
           },
           "required": true
@@ -132,7 +132,7 @@
           }
         },
         {
-          "name": "osmp_id",
+          "name": "client_number",
           "location": "PARAMETER_LOCATION_BODY",
           "schema": {
             "description": "Client {CLIENT_ID_LABEL} code",

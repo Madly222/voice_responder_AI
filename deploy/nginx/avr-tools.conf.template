@@ -26,7 +26,7 @@ server {
     error_log  /var/log/nginx/avr-tools.error.log warn;
 
     # Agent tools only. getCalls is NOT exposed.
-    location ~ ^/tool/(searchFAQ|findByOSMP|getNetworkData|diagnoseClient|updateCall)$ {
+    location ~ ^/tool/(searchFAQ|findByClientId|findByOSMP|getNetworkData|diagnoseClient|updateCall)$ {
         limit_except POST { deny all; }
         if ($avr_key_ok = 0) { return 403; }
         limit_req zone=avr_tools burst=20 nodelay;

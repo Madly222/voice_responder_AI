@@ -34,8 +34,8 @@ const billing = pick(BILLING, 'BILLING_PROVIDER');
 const network = pick(NETWORK, 'NETWORK_SOURCE');
 console.log(`[providers] биллинг: ${billing.name}, сеть: ${network.name}`);
 
-// Client number: what the agent calls it and its format (regex without ^ and $).
-const CLIENT_ID_LABEL = process.env.CLIENT_ID_LABEL || 'OSMP';
+// Client ID: what the agent calls it and its format (regex without ^ and $).
+const CLIENT_ID_LABEL = process.env.CLIENT_ID_LABEL || 'Client ID';
 let CLIENT_ID_RE;
 try {
   CLIENT_ID_RE = new RegExp(`^(?:${process.env.CLIENT_ID_PATTERN || '[0-9]{5}'})$`);
@@ -58,10 +58,11 @@ function saveToCall(fields) {
 
 async function findClient(params) {
   if (!billing.impl) return disabled('Client lookup in billing');
-  const raw = params && (params.osmp_id ?? params.client_number);
+  // osmp_id: parameter name used by Ultravox tools created before the client-ID rename.
+  const raw = params && (params.client_number ?? params.osmp_id);
   const number = raw == null ? '' : String(raw).trim();
-  if (!number) return { error: true, message: `${CLIENT_ID_LABEL} ID not specified` };
-  if (!CLIENT_ID_RE.test(number)) return { error: true, message: `${CLIENT_ID_LABEL} ID has a wrong format` };
+  if (!number) return { error: true, message: `${CLIENT_ID_LABEL} not specified` };
+  if (!CLIENT_ID_RE.test(number)) return { error: true, message: `${CLIENT_ID_LABEL} has a wrong format` };
   if (!billing.impl.configured()) {
     saveToCall({ whmcs_error: `${billing.impl.label}: not configured` });
     return { error: true, message: 'Billing is not configured' };
@@ -72,7 +73,7 @@ async function findClient(params) {
     console.log(`[billing:${billing.name}] ответ:`, JSON.stringify(c));
     if (c && c.found) {
       saveToCall({
-        osmp_id: c.osmp_id || number,
+        client_number: c.client_number || number,
         client_name: c.client_name,
         client_type: c.client_type,
         client_id: c.client_id || null,
@@ -82,12 +83,12 @@ async function findClient(params) {
         is_paid: c.is_paid
       });
     } else {
-      saveToCall({ osmp_id: number });
+      saveToCall({ client_number: number });
     }
     return { error: false, data: c || { found: false } };
   } catch (err) {
     console.error(`[billing:${billing.name}] ошибка:`, err.message);
-    saveToCall({ osmp_id: number, whmcs_error: String(err.code || err.message).slice(0, 200) });
+    saveToCall({ client_number: number, whmcs_error: String(err.code || err.message).slice(0, 200) });
     return { error: true, message: 'Could not find client' };
   }
 }

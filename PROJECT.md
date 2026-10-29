@@ -27,7 +27,7 @@ Speech-to-Speech через Ultravox (`docker-compose-ultravox.yml`).
 ## 1. Назначение
 
 Клиент звонит в техподдержку, выбирает в меню язык — отвечает голосовой AI-агент на румынском
-или русском (два отдельных агента). Агент ищет ответ в FAQ, находит клиента в биллинге по OSMP ID, подтягивает сетевые данные
+или русском (два отдельных агента). Агент ищет ответ в FAQ, находит клиента в биллинге по ID клиента, подтягивает сетевые данные
 из NetBox и при необходимости диагностирует порт/MAC на коммутаторе по SSH. По завершении звонка
 сводка уходит в Telegram.
 
@@ -110,7 +110,7 @@ Docker-сеть `avr` (172.28.0.0/24), контейнеры видят друг 
 | Тулз | Что делает | Зависит от | Подключён в Ultravox |
 |---|---|---|---|
 | `searchFAQ` | Поиск ответа в базе сценариев | `faq.json` | да |
-| `findByOSMP` | Клиент по OSMP ID | WHMCS PHP-коннектор | да |
+| `findByClientId` | Клиент по ID клиента | WHMCS PHP-коннектор | да |
 | `getNetworkData` | IP клиента → MAC, свитч, порт, POP | NetBox | да |
 | `diagnoseClient` | Статус порта + поиск MAC на свитче | network-diag (SSH) | да |
 | `updateCall` | Дозапись данных в карточку звонка, в т.ч. `request_summary` (суть обращения словами клиента) и `resolution` (что сказали клиенту) | память faq-server | да |
@@ -122,7 +122,7 @@ Docker-сеть `avr` (172.28.0.0/24), контейнеры видят друг 
 - FAQ: `faq-server/data/faq.json`, 14 записей (добавлены `service_not_working` — «не открывается
   YouTube/сайт/приложение», `wifi_not_working`, `intermittent_internet`, `working_hours`). **Правки применяются к поиску только после
   рестарта faq-server** (P-03), счётчик в `/health` обновляется сразу.
-- `findByOSMP`, `getNetworkData`, `diagnoseClient` сами дописывают результат в «последний открытый
+- `findByClientId`, `getNetworkData`, `diagnoseClient` сами дописывают результат в «последний открытый
   звонок» (P-02). Ошибки WHMCS и network-diag тоже пишутся — они попадают в блок SYSTEM ERRORS.
 - Фраза клиента берётся из трёх источников по приоритету: `request_summary` от агента → запросы
   `searchFAQ` (с фильтром подтверждений и цифр) → стенограмма звонка из API Ultravox.
@@ -133,13 +133,14 @@ Docker-сеть `avr` (172.28.0.0/24), контейнеры видят друг 
 
 ### 5.1. WHMCS (192.0.2.30)
 - Наша сторона: `faq-server/tools/whmcs.js`, запрос
-  `GET ${WHMCS_CUSTOM_API}?api_key=…&action=find_by_osmp&osmp_id=NNNNN`, таймаут 15 с.
+  `GET ${WHMCS_CUSTOM_API}?api_key=…&action=find_by_osmp&osmp_id=NNNNN`, таймаут 15 с. Имена `action` и
+  параметра — это контракт уже развёрнутого `api_client.php`; меняются через `WHMCS_FIND_ACTION` / `WHMCS_ID_PARAM`.
 - Сторона биллинга: `<billing-webroot>/api_client.php` (вне git, нужен доступ к БД WHMCS).
   - `$allowed_ips` — IP сервера проекта: сейчас `192.0.2.10` (старые `192.0.2.12`,
     `192.0.2.11` можно убрать);
   - `$api_key` == `WHMCS_API_KEY` в `.env`;
-  - OSMP = custom field клиента (id поля и групп клиентов — из настроек своего WHMCS);
-    OSMP — ровно 5 цифр;
+  - ID клиента = custom field (id поля и групп клиентов — из настроек своего WHMCS);
+    ID — ровно 5 цифр (`CLIENT_ID_PATTERN`);
   - `mysql_query("SET NAMES utf8")` обязателен, иначе диакритика приходит как `?`;
   - отдаёт также `address` (address1 + address2 + city), `client_id` (для ссылки в Telegram) и `debt`.
 - Ответ: `{"error":false,"data":{"found":true,"client_name","osmp_id","client_type","client_ip","is_active","is_paid"}}`.
@@ -180,7 +181,7 @@ Flask: `/diagnose` (порт + MAC), `/check-mac`, `/check-port`, `/test-ssh`, `
 Формат сводки (сверху вниз): номер звонка и время → телефон → CALLBACK (если нужен) →
 **CLIENT SAID** (слова клиента) → **PROBLEM** (список проблем клиента) → **TOLD CLIENT**
 (`resolution`) → **SYSTEM ERRORS** (сбои нашей стороны, только при наличии) → карточка клиента
-(имя со ссылкой на биллинг, OSMP, статус, адрес, IP со ссылкой на NetBox, MAC, свитч/IP/порт) →
+(имя со ссылкой на биллинг, ID клиента, статус, адрес, IP со ссылкой на NetBox, MAC, свитч/IP/порт) →
 строка диагностики. Долг показывается как справка и в список проблем не входит.
 
 ### 5.5. Ultravox
@@ -197,7 +198,7 @@ Flask: `/diagnose` (порт + MAC), `/check-mac`, `/check-port`, `/test-ssh`, `
 ### 5.6. Публичный вход (nginx + Let's Encrypt)
 - Домен `avr.example.com` → A `203.0.113.10` (Technitium DNS 203.0.113.53 / .54).
 - MikroTik: dst-nat `203.0.113.10:8443` → `192.0.2.10:8443` + filter (лимит соединений).
-- nginx: TLS 1.2/1.3; пропускает **только** `POST /tool/(searchFAQ|findByOSMP|getNetworkData|diagnoseClient|updateCall)` (только то, что зовёт Ultravox)
+- nginx: TLS 1.2/1.3; пропускает **только** `POST /tool/(searchFAQ|findByClientId|getNetworkData|diagnoseClient|updateCall)` (только то, что зовёт Ultravox)
   с правильным `X-AVR-Key` (иначе 403); всё остальное — закрыть соединение (444); 10 запр/с с IP.
 - Сертификат: DNS-01 по RFC 2136 (TSIG-ключ `certbot-avr`, HMAC-SHA256) на Technitium;
   продление автоматическое, после продления nginx перезагружается хуком.
@@ -302,7 +303,7 @@ curl -s -m45 -X POST localhost:5000/test-ssh -H 'Content-Type: application/json'
 | Агент говорит, но «ничего не находит» | Тулзы получают 403/таймаут | `sudo tail /var/log/nginx/avr-tools.access.log` |
 | В access-логе `403` от Ultravox | Нет/неверный статический заголовок `X-AVR-Key` | `ULTRAVOX.md` §2 |
 | Снаружи порт 8443 висит | ufw, проброс MikroTik, nginx | `tcpdump port 8443`, `ufw status`, `ss -ltnp` |
-| `findByOSMP` — `Access denied` | IP сервера не в `$allowed_ips` | PHP-коннектор |
+| `findByClientId` — `Access denied` | IP сервера не в `$allowed_ips` | PHP-коннектор |
 | Диагностика `timeout` / `refused` | Свитч недоступен / vty ACL | `scripts/diag_report.py` |
 | Диагностика `Authentication failed` | Учётка `api` в RADIUS | `/test-ssh` |
 | Правка `pjsip.conf` не применяется | Файл заменён `sed -i` | `docker restart avr-asterisk` |
@@ -386,7 +387,7 @@ NetBox, SSH-диагностика на доступных Cisco, журнал �
 **Решено делать дальше:** один составной тулз (`checkConnection`: WHMCS → NetBox → SSH → вердикт
 на сервере, LLM видит только итог); ID звонка вместо `latest`; горячая перезагрузка FAQ; проверка
 `X-AVR-Key` внутри faq-server (timing-safe, сейчас только в nginx); отдельный лимит на
-`findByOSMP`; при долгой проверке — фоновое выполнение с отправкой результата в Telegram.
+`findByClientId`; при долгой проверке — фоновое выполнение с отправкой результата в Telegram.
 
 **Следующая крупная задача — админка: полная настройка проекта** (решено 2026-09-30).
 Цель: проект клонируется на сервер, запускается, а дальше всё настраивается через панель — без ручных
@@ -397,9 +398,9 @@ NetBox, SSH-диагностика на доступных Cisco, журнал �
 |---|---|---|
 | A-1 | Опись: все настройки проекта и где они сейчас лежат (`.env`, код, Asterisk, Ultravox, nginx, Telegram, NetBox, WHMCS) | ✅ 2026-09-30 (ниже) |
 | A-2 | Всё в `.env`: недостающие настройки (сейчас зашитые в код/конфиги) вынести в `.env`, обновить `.env.example` | 🟠 `.env.example` переписан под наш стек, рабочий `.env` приведён к нему (43 неиспользуемые записи апстрима убраны, копия — `~/avr-infra-old-backups-2026-09-25/.env.2026-09-30-before-cleanup`) (2026-09-30); таймауты, адрес API Ultravox, расписание и пояс проверки панели вынесены в `.env` (`*_TIMEOUT_MS`, `ULTRAVOX_API_URL`, `CRON_TZ`, `HEALTH_REPORT_CRON`), запасные адреса ExampleNet из панели убраны; `SSH_*`, `NETBOX_TIMEOUT_MS`, `TRANSCRIPT_MAX_UTTERANCES` теперь реально передаются в сервисы (раньше compose их не пробрасывал). Осталось в A-2b: шаблоны ссылок, номер клиента |
-| A-2b | Переходники биллинга и сети (см. ниже): единый формат, выбор платформы в `.env`/панели, шаблоны ссылок | ✅ 2026-09-30: `faq-server/tools/providers.js`, выключатели `BILLING_PROVIDER` / `NETWORK_SOURCE`, шаблоны `BILLING_CLIENT_URL` / `NETWORK_IP_URL` / `NETWORK_DEVICE_URL`, номер клиента `CLIENT_ID_LABEL` / `CLIENT_ID_PATTERN`; в панели выключенное — серым. Промпты RO/RU (OSMP) — в A-4 |
+| A-2b | Переходники биллинга и сети (см. ниже): единый формат, выбор платформы в `.env`/панели, шаблоны ссылок | ✅ 2026-09-30: `faq-server/tools/providers.js`, выключатели `BILLING_PROVIDER` / `NETWORK_SOURCE`, шаблоны `BILLING_CLIENT_URL` / `NETWORK_IP_URL` / `NETWORK_DEVICE_URL`, номер клиента `CLIENT_ID_LABEL` / `CLIENT_ID_PATTERN`; в панели выключенное — серым. Промпты RO/RU (ID клиента) — в A-4 |
 | A-3 | Весь `.env` в панели: группы, описания, скрытие секретов, проверка значений | ✅ 2026-09-30: вкладка строится по `.env.example` (`admin-panel/envSchema.js`: группы, описания, «по умолч.», выбор `a \| b`, «(секрет)»), проверка значений на сервере, ошибки у поля; `NETWORK_ENABLE` больше не виден открытым; запись с кавычками, безопасными для `$` |
-| A-4 | Ultravox в панели через API (правка, не только просмотр). Правки из панели — у каждой установки свои: живая конфигурация в Ultravox, копии — `instance/` (вне git); в git — только шаблоны. Шаги: **4.1** вкладка «Ultravox»: агенты RO/RU — промпт, голос (по языку, прослушивание), язык, приветствие, сообщения при молчании, длительность, модель, VAD, имя; проверка изменений, копия перед записью, откат ✅ 2026-09-30 (`admin-panel/ultravox.js`, история `instance/ultravox/history/<lang>/`, последние 50) · **4.2** тулзы ✅ 2026-09-30: шаблоны `ultravox/tools.json`, правки установки `instance/ultravox/tools.json`, сверка (адрес из `TOOLS_PUBLIC_URL`, ключ `TOOLS_API_KEY`, таймаут, описание, параметры, `uv_call_id`), синхронизация с копией (`instance/ultravox/history/tools/`) и возвратом при ошибке, подключение/отключение по `BILLING_PROVIDER`/`NETWORK_SOURCE`; в живой Ultravox залиты рекомендованные описания (старые «Takes 10-15 seconds» и т.п. ушли) · **4.3** промпты ✅ 2026-09-30 (решено без блоков-условий: каждая установка правит свой промпт в панели): образцы перенесены в `ultravox/prompts/{ro,ru}.md`; панель проверяет, что промпт соответствует включённым функциям (упоминает `findByOSMP` и номер `CLIENT_ID_LABEL` при биллинге, `getNetworkData`/`diagnoseClient` при учёте сети, и не упоминает выключенные) — во вкладке и перед отправкой · **4.4** «Применить» ✅ 2026-09-30 (`admin-panel/applyPlan.js`): панель сравнивает значения из `.env` с тем, с чем реально запущен каждый контейнер (`docker inspect`), показывает план и пересоздаёт только устаревшие сервисы (предупреждает, если это оборвёт звонки), синхронизирует тулзы Ultravox и предупреждает о расхождении промптов. Исправлено попутно: compose внутри панели брал значения из окружения панели, а не из `.env` (смена пароля панели не применялась), и панель не могла пересоздать себя (оставалась недосозданной) — теперь это делает вспомогательный контейнер. `COMPOSE_APPLY_SERVICES` больше не нужен | ✅ |
+| A-4 | Ultravox в панели через API (правка, не только просмотр). Правки из панели — у каждой установки свои: живая конфигурация в Ultravox, копии — `instance/` (вне git); в git — только шаблоны. Шаги: **4.1** вкладка «Ultravox»: агенты RO/RU — промпт, голос (по языку, прослушивание), язык, приветствие, сообщения при молчании, длительность, модель, VAD, имя; проверка изменений, копия перед записью, откат ✅ 2026-09-30 (`admin-panel/ultravox.js`, история `instance/ultravox/history/<lang>/`, последние 50) · **4.2** тулзы ✅ 2026-09-30: шаблоны `ultravox/tools.json`, правки установки `instance/ultravox/tools.json`, сверка (адрес из `TOOLS_PUBLIC_URL`, ключ `TOOLS_API_KEY`, таймаут, описание, параметры, `uv_call_id`), синхронизация с копией (`instance/ultravox/history/tools/`) и возвратом при ошибке, подключение/отключение по `BILLING_PROVIDER`/`NETWORK_SOURCE`; в живой Ultravox залиты рекомендованные описания (старые «Takes 10-15 seconds» и т.п. ушли) · **4.3** промпты ✅ 2026-09-30 (решено без блоков-условий: каждая установка правит свой промпт в панели): образцы перенесены в `ultravox/prompts/{ro,ru}.md`; панель проверяет, что промпт соответствует включённым функциям (упоминает `findByClientId` и номер `CLIENT_ID_LABEL` при биллинге, `getNetworkData`/`diagnoseClient` при учёте сети, и не упоминает выключенные) — во вкладке и перед отправкой · **4.4** «Применить» ✅ 2026-09-30 (`admin-panel/applyPlan.js`): панель сравнивает значения из `.env` с тем, с чем реально запущен каждый контейнер (`docker inspect`), показывает план и пересоздаёт только устаревшие сервисы (предупреждает, если это оборвёт звонки), синхронизирует тулзы Ultravox и предупреждает о расхождении промптов. Исправлено попутно: compose внутри панели брал значения из окружения панели, а не из `.env` (смена пароля панели не применялась), и панель не могла пересоздать себя (оставалась недосозданной) — теперь это делает вспомогательный контейнер. `COMPOSE_APPLY_SERVICES` больше не нужен | ✅ |
 | A-5 | Инструменты для первого запуска (реально на новом сервере не запускаем): **вкладка «Справка»** ✅ 2026-09-30 — как устроен проект, где что взять и куда вписать, вкладки панели, «если горит красное» (текст — `admin-panel/guide.md`, правится без пересборки) + чек-лист первого запуска с живыми отметками (`admin-panel/guide.js`); **создание агента из образца** ✅ 2026-09-30 — кнопка на вкладке Ultravox, если `ULTRAVOX_AGENT_ID`/`_RU` пусты: агент в аккаунте ключа (промпт `ultravox/prompts/<lang>.md` с `{COMPANY_NAME}`, модель ultravox-v0.7, голос языка из включённых в оплату, приветствие с раскрытием ИИ, фразы при молчании), ID сразу в `.env`; проверено созданием и удалением тестовых агентов RO/RU. Ловушка: голоса `VOICE_BILLING_STYLE_EXTERNAL` требуют свой ключ провайдера — в списке помечены | ✅ |
 | A-6 | Хост (root) — `install.sh` в корне ✅ 2026-09-30: проверки (Ubuntu, место), Docker из официального репозитория + группа docker, `.env` из образца (600, `PROJECT_DIR`, `PANEL_*`, случайный пароль панели), конфиги Asterisk из образцов со случайными паролями (AMI = `AMI_PASSWORD` в `.env`), `instance/` и `…-backups`, ufw (22 первым, SIP, RTP, панель, тулзы), запуск стека, опционально nginx + сертификат (`--domain --dns-mode`, вызывает `deploy/nginx/install_nginx.sh`, пишет `TOOLS_*` в `.env`). Повторный запуск безопасен, `--dry-run` ничего не меняет. Проверено: `--dry-run` на рабочем сервере, чистая установка и повтор в одноразовом контейнере Ubuntu 22.04. Расписание — в панели (node-cron), crontab не нужен | ✅ |
 | A-7 | Безопасность панели ✅ 2026-10-01 (`admin-panel/security.js`): вход с защитой от подбора (10 неверных паролей с адреса за 15 мин → блокировка 15 мин; сравнение без утечки по времени), журнал действий `instance/audit.log` (кто, IP, что; без значений; вкладка «Мониторинг»), проверка «Безопасность панели» (слабый пароль — красное, напоминание не пробрасывать порт, неудачные входы за сутки); проверено: ни один из 9 секретов `.env` не выдаётся ни одной из 20 страниц API (кроме редактора конфигов Asterisk — по замыслу). Копии `.env` перед записью — `~/avr-infra-backups/` | ✅ |
@@ -409,7 +410,7 @@ NetBox, SSH-диагностика на доступных Cisco, журнал �
 - **Клиент:** номер договора, имя, тип, IP, адрес, активен/оплачен, долг, ссылка в биллинг.
 - **Сеть клиента:** MAC, свитч, IP свитча, порт, точка присутствия (`pop`), `can_diagnose`.
 - Выбор в `.env` и панели: `BILLING_PROVIDER=whmcs|none`, `NETWORK_SOURCE=netbox|none` — **необязательные
-  функции**. Выключено = агенту не подключают соответствующие тулзы (`findByOSMP`; `getNetworkData` +
+  функции**. Выключено = агенту не подключают соответствующие тулзы (`findByClientId`; `getNetworkData` +
   `diagnoseClient`) и берут промпт без этих шагов — это делает панель в A-4. Если тулз всё же вызван,
   faq-server отвечает `code: DISABLED` («не повторять, предложить callback»). Диагностика выключается вместе с учётом сети.
 - Контракт переходника и порядок добавления новой платформы — в шапке `faq-server/tools/providers.js`.
@@ -417,7 +418,7 @@ NetBox, SSH-диагностика на доступных Cisco, журнал �
 - **Ссылки** в Telegram/журнале — шаблоны в `.env`, настраиваются в панели; по умолчанию — от переходника.
   Сейчас в `callLogger.js` база из `.env`, а путь зашит: `{WHMCS_ADMIN_URL}/clientssummary.php?userid={client_id}`,
   `{NETBOX}/ipam/ip-addresses/{ip_id}/`, `{NETBOX}/dcim/devices/{device_id}/`.
-- Тоже специфика ExampleNet, вынести в настройки: номер клиента «OSMP, 5 цифр» (код `whmcs.js` и промпты RO/RU),
+- Тоже специфика ExampleNet, вынести в настройки: номер клиента «ID клиента, 5 цифр» (код `whmcs.js` и промпты RO/RU),
   диагностика только Cisco (network-diag).
 
 **A-1. Опись настроек (2026-09-30).**
@@ -429,7 +430,7 @@ NetBox, SSH-диагностика на доступных Cisco, журнал �
   `SSH_CONNECT_TIMEOUT`, `SSH_CMD_TIMEOUT`, `SSH_TOTAL_TIMEOUT`, `TRANSCRIPT_MAX_UTTERANCES`, `CRON_TZ`,
   `PANEL_ULTRAVOX_URL`, `NETWORK_DIAG_URL`, `FAQ_SERVER_URL`, `COMPOSE_FILES`, `COMPOSE_APPLY_SERVICES`, `TOOLS_CHECK_ADDR`.
 - Зашито в код: таймауты WHMCS 15 с, Telegram 10 с, network-diag 12 с, Ultravox 8 с; адрес API Ultravox;
-  запасные `avr.example.com:8443` и `192.0.2.10` в `admin-panel/healthChecks.js`; языки `ro`/`ru`; OSMP 5 цифр;
+  запасные `avr.example.com:8443` и `192.0.2.10` в `admin-panel/healthChecks.js`; языки `ro`/`ru`; ID клиента 5 цифр;
   пути ссылок WHMCS/NetBox (см. A-2b).
 - Asterisk: IP сервера в `pjsip.conf` (`external_*`), транк `PBX_TRUNK` и адреса АТС (`match=`), номера `5001/5003/5004`
   в `extensions.conf` — генерировать из `.env`.
@@ -454,6 +455,15 @@ NetBox; нам не мешает).
 ---
 
 ## 11. Журнал изменений
+
+### 2026-10-29 — OSMP → ID клиента
+- Номер клиента везде называется нейтрально: тулз `findByClientId` (параметр `client_number`), флаг FAQ
+  `requires_client_id`, поле карточки звонка `client_number`, подпись по умолчанию `CLIENT_ID_LABEL=Client ID`;
+  промпты RO/RU, `ultravox/tools.json`, FAQ и документация обновлены.
+- Совместимость: faq-server принимает старое имя `/tool/findByOSMP` и параметр `osmp_id`, `searchFAQ` отдаёт
+  флаг и под старым именем `requires_osmp`, старые записи FAQ с `requires_osmp` читаются.
+- Контракт `api_client.php` не тронут: `action=find_by_osmp`, `osmp_id` — значения по умолчанию новых
+  `WHMCS_FIND_ACTION` / `WHMCS_ID_PARAM`. Что сделать на действующей установке — `MIGRATION.md` §9.
 
 ### 2026-09-25 — Сверка документации с сервером
 - Запущен `certbot.timer` (был `enabled`, но не активен — автопродление не работало); ловушка 23 в `MIGRATION.md`.
@@ -541,4 +551,4 @@ NetBox; нам не мешает).
 ### Чистка кода и фиксы диагностики (до переезда)
 - Удалены мёртвые файлы (`pyats.js`, бэкапы `*(old)`, дубли конфигов Asterisk, пустая `functions/`).
 - `port_status` в `/diagnose` (up/down/null), эндпоинт `/check-port`; автосейв реального `port_status`.
-- `requires_osmp: true` для `no_internet`, `slow_internet`; `searchFAQ` возвращает `requires_osmp`.
+- `requires_client_id: true` для `no_internet`, `slow_internet`; `searchFAQ` возвращает `requires_client_id`.

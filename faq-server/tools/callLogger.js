@@ -12,7 +12,7 @@ let pendingRequests = [];
 
 // P-02: which call the current tool request belongs to.
 // server.js stores { uvCallId, callId } here for the duration of a request; every 'latest' inside
-// the tools (findByOSMP, getNetworkData, diagnoseClient, updateCall) writes to that call.
+// the tools (findByClientId, getNetworkData, diagnoseClient, updateCall) writes to that call.
 const callContext = new AsyncLocalStorage();
 
 function runInCall(ctx, fn) {
@@ -127,7 +127,7 @@ function startCall(params) {
     lang: ['ro', 'ru'].includes(params.lang) ? params.lang : null,  // from the Asterisk menu
     client_name: null,
     client_type: null,
-    osmp_id: null,
+    client_number: null,     // client ID given by the caller
     client_ip: null,
     address: null,
     client_id: null,          // WHMCS client id (for the link)
@@ -192,7 +192,7 @@ function updateCall(params) {
 
   const fields = [
     'client_name', 'client_type', 'phone', 'caller_id',
-    'osmp_id', 'client_ip', 'address', 'is_active', 'is_paid',
+    'client_number', 'client_ip', 'address', 'is_active', 'is_paid',
     'user_request', 'request_summary', 'resolution', 'client_id', 'netbox_ip_id', 'netbox_device_id',
     'mac_address', 'switch_name', 'switch_ip', 'port', 'pop',
     'port_status', 'mac_found', 'diagnosis',
@@ -201,6 +201,8 @@ function updateCall(params) {
     'needs_callback', 'callback_reason',
     'whmcs_error', 'netbox_error', 'diag_error'
   ];
+
+  if (params.client_number === undefined && params.osmp_id !== undefined) params.client_number = params.osmp_id;  // pre-rename agents
 
   let updated = [];
 
@@ -401,7 +403,7 @@ function formatCallForFile(call) {
   }
   entry += `    Phone: ${call.phone || '-'}\n`;
   entry += `    Lang: ${call.lang || '-'}\n`;
-  entry += `    ${providers().CLIENT_ID_LABEL}: ${call.osmp_id || '-'}\n`;
+  entry += `    ${providers().CLIENT_ID_LABEL}: ${call.client_number || '-'}\n`;
   entry += `    Client: ${call.client_name || '-'}\n`;
   entry += `    Type: ${call.client_type || '-'}\n`;
   entry += `    IP: ${call.client_ip || '-'}\n`;
@@ -460,12 +462,12 @@ function esc(v) {
 // Debt is NOT included: we do not cut service immediately for non-payment.
 // Billing answered but has no client with this number: not a failure on our side,
 // the number was given wrong or misheard.
-const clientNotFound = (call) => !!(call.osmp_id && !call.client_name && !call.whmcs_error);
+const clientNotFound = (call) => !!(call.client_number && !call.client_name && !call.whmcs_error);
 
 function generateProblems(call) {
   const out = [];
   if (clientNotFound(call)) {
-    out.push(`${providers().CLIENT_ID_LABEL} ${call.osmp_id} not found in billing - wrong code given or misheard, client not identified`);
+    out.push(`${providers().CLIENT_ID_LABEL} ${call.client_number} not found in billing - wrong code given or misheard, client not identified`);
   }
   if (call.is_active === false) out.push('Contract not active - service disconnected');
   if (call.port_status === 'down') out.push('Port on switch is DOWN - technician required');
@@ -540,7 +542,7 @@ function formatCallForChatbot(call) {
   L.push('\u{1F50D} <b>PROBLEM</b>');
   L.push(problems.length ? problems.map((p) => '\u2022 ' + esc(p)).join('\n')
     : sysErrors.length ? '<i>not determined - check did not complete</i>'
-    : (call.osmp_id ? '<i>no technical problem found</i>' : '<i>general question</i>'));
+    : (call.client_number ? '<i>no technical problem found</i>' : '<i>general question</i>'));
   L.push('');
 
   if (call.resolution) {
@@ -561,8 +563,8 @@ function formatCallForChatbot(call) {
   const idLabel = esc(providers().CLIENT_ID_LABEL);
   if (!call.client_name) {
     L.push('\u{1F464} <i>client not identified</i>');
-    L.push('\u{1F4B3} ' + (call.osmp_id
-      ? idLabel + ' ' + esc(call.osmp_id) + '  ·  '
+    L.push('\u{1F4B3} ' + (call.client_number
+      ? idLabel + ' ' + esc(call.client_number) + '  ·  '
         + (clientNotFound(call) ? '❌ not found in billing' : '❔ billing check failed')
       : idLabel + ' <i>not given</i>'));
   } else {
@@ -572,7 +574,7 @@ function formatCallForChatbot(call) {
       : call.is_active === false ? '❌ inactive' : '❔ status n/a';
     const paid = call.is_paid === true ? '\u{1F4B0} paid'
       : call.is_paid === false ? '❗ debt' : '❔ payment n/a';
-    L.push('\u{1F4B3} ' + idLabel + ' ' + esc(call.osmp_id) + '  ·  ' + active + '  ·  ' + paid);
+    L.push('\u{1F4B3} ' + idLabel + ' ' + esc(call.client_number) + '  ·  ' + active + '  ·  ' + paid);
     if (call.address) L.push('\u{1F4CD} ' + esc(call.address));
   }
   if (call.client_ip || call.mac_address) {
@@ -606,7 +608,7 @@ function formatCallForChatbot(call) {
     call_number: call.number,
     phone: call.phone,
     lang: call.lang,
-    osmp_id: call.osmp_id,
+    client_number: call.client_number,
     client_name: call.client_name,
     client_type: call.client_type,
     address: call.address,
@@ -626,7 +628,7 @@ function generatePossibleIssue(call) {
   if (problems.length) parts.push(problems.join('; '));
   if (sysErrors.length) parts.push('SYSTEM: ' + sysErrors.join('; '));
   if (!problems.length && sysErrors.length) parts.unshift('Not determined - check did not complete');
-  if (!parts.length) parts.push(call.osmp_id ? 'No technical problem found' : 'General question / consultation');
+  if (!parts.length) parts.push(call.client_number ? 'No technical problem found' : 'General question / consultation');
   return parts.join(' | ');
 }
 
@@ -693,7 +695,7 @@ module.exports = {
         client_name: { type: 'string' },
         client_type: { type: 'string' },
         phone: { type: 'string' },
-        osmp_id: { type: 'string' },
+        client_number: { type: 'string' },
         client_ip: { type: 'string' },
         is_active: { type: 'boolean' },
         is_paid: { type: 'boolean' },

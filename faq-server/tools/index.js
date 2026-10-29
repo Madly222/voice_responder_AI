@@ -55,16 +55,16 @@ module.exports = {
       return result;
     },
   },
-  // The tool name is historical (that is its name in Ultravox); it looks the client up in the selected billing system.
-  findByOSMP: {
-    name: 'findByOSMP',
-    description: `Find client in billing by ${providers.CLIENT_ID_LABEL} ID`,
+  // Looks the client up in the selected billing system. The old name findByOSMP is an alias (server.js).
+  findByClientId: {
+    name: 'findByClientId',
+    description: `Find client in billing by ${providers.CLIENT_ID_LABEL}`,
     parameters: {
       type: 'object',
       properties: {
-        osmp_id: { type: 'string', description: `Client ${providers.CLIENT_ID_LABEL} ID` }
+        client_number: { type: 'string', description: `Client ${providers.CLIENT_ID_LABEL}` }
       },
-      required: ['osmp_id']
+      required: ['client_number']
     },
     execute: providers.findClient
   },
@@ -75,7 +75,7 @@ module.exports = {
     parameters: {
       type: 'object',
       properties: {
-        client_ip: { type: 'string', description: 'Client IP address from findByOSMP' }
+        client_ip: { type: 'string', description: 'Client IP address from findByClientId' }
       },
       required: ['client_ip']
     },

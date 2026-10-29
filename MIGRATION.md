@@ -168,7 +168,7 @@ PANEL_PASS=                  # обязателен
    после первого успешного запуска — сразу `docker save` в бэкап.
 4. **Ultravox** — агент и тулзы по `ULTRAVOX.md`.
 5. **PHP-коннектор WHMCS** — из копии в вебрут биллинга; настроить `$allowed_ips`, `$api_key`,
-   `$db_pass`, id поля OSMP и групп клиентов. Обязательно: `mysql_query("SET NAMES utf8", $conn);`
+   `$db_pass`, id поля с ID клиента и групп клиентов. Обязательно: `mysql_query("SET NAMES utf8", $conn);`
    сразу после `mysql_select_db` (иначе диакритика приходит как `?`), и в ответе должны быть
    `address`, `client_id`, `debt` — от них зависят адрес и ссылка на биллинг в Telegram.
 
@@ -286,7 +286,7 @@ Trunks → транк → PEER Details `host=<новый-ip>` → Submit → **A
 ## 8а. Ultravox
 
 **Ловушка 20. Inactivity Messages кладут трубку во время работы тулзов.** Симптом: клиент назвал
-OSMP, агент молчит, через 15 с звучит «Pot sa va ajut cu ceva?» и звонок обрывается. Первое
+ID клиента, агент молчит, через 15 с звучит «Pot sa va ajut cu ceva?» и звонок обрывается. Первое
 сообщение должно быть не короче 45 с и **без Hang Up**; трубку кладёт только второе (120 с).
 
 **Ловушка 21. Правка тулза ломается о привязку к агенту** («incompatible with how some agents use
@@ -314,6 +314,21 @@ the tool»). Отвязать тулз от агента, поправить, п
   `refused` на 22 **и** 23 = vty ACL (отказ до логина), `Authentication failed` = учётка,
   `timeout` = маршрут/фильтр. Проверка: `python3 scripts/diag_probe.py --ssh-limit 50 && python3 scripts/diag_report.py`.
 
+**Переименование OSMP → ID клиента (2026-10-29).** Действующая установка продолжает работать без правок:
+- **Биллинг:** менять ничего не нужно. faq-server и панель по-прежнему шлют в `api_client.php`
+  `action=find_by_osmp` и `osmp_id` (значения по умолчанию `WHMCS_FIND_ACTION` / `WHMCS_ID_PARAM`). Если
+  переименовать их в скрипте (например, `find_by_client_id` / `client_id_number`), то в `.env` задать те же
+  имена: `WHMCS_FIND_ACTION=…`, `WHMCS_ID_PARAM=…` (параметр с этим же именем ищется и в ответе), затем
+  пересоздать faq-server и панель.
+- **Ultravox:** старые тулз `findByOSMP` и параметр `osmp_id` faq-server принимает как синонимы. Чтобы перейти
+  на новые имена: в панели (вкладка Ultravox) синхронизировать тулзы из `ultravox/tools.json` — появится
+  `findByClientId` с параметром `client_number`; подключить его к обоим агентам вместо `findByOSMP`; обновить
+  промпты из `ultravox/prompts/ro.md` / `ru.md` (`ultravox_prompt.py`). После этого `findByOSMP` можно удалить.
+- **nginx:** шаблон пропускает оба пути (`findByClientId` и `findByOSMP`). На действующем сервере перегенерировать
+  конфиг (`deploy/nginx/install_nginx.sh`) или добавить `findByClientId` в `location` вручную — до смены тулза в Ultravox.
+- **Подпись в отчётах:** по умолчанию теперь `Client ID`. Чтобы оставить прежнюю — `CLIENT_ID_LABEL=OSMP` в `.env`.
+- **FAQ:** записи с `requires_osmp` читаются как раньше; при сохранении из панели флаг записывается как `requires_client_id`.
+
 ---
 
 ## 10. Сеть и безопасность
@@ -332,7 +347,7 @@ nginx (на хосте) ufw фильтрует — см. ловушку 13.
 4. Старый стек погашен; свежий `calls.txt` перенесён.
 5. MikroTik: dst-nat 8443 → новый сервер. **Это момент переключения тулзов** (домен и ключ те же).
 6. АТС: `host=` транка → новый сервер, Apply Config.
-7. Тестовый звонок: агент отвечает, звук в обе стороны, OSMP находится, Telegram пришёл,
+7. Тестовый звонок: агент отвечает, звук в обе стороны, клиент находится по ID, Telegram пришёл,
    в `/var/log/nginx/avr-tools.access.log` — `200`.
 8. Старую VM не удалять 1–2 недели.
 

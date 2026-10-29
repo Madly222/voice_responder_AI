@@ -11,7 +11,7 @@ const TELEGRAM_TIMEOUT_MS = Number(process.env.TELEGRAM_TIMEOUT_MS) || 10000;
  * @param {string} chatbotData.text - HTML formatted message
  * @param {number} chatbotData.call_number - Call number
  * @param {string} chatbotData.phone - Client phone
- * @param {string} chatbotData.osmp_id - OSMP ID
+ * @param {string} chatbotData.client_number - client ID
  * @param {boolean} chatbotData.needs_callback - Whether callback is needed
  * 
  * @returns {Promise<Object>} Result with error flag and data
@@ -78,7 +78,7 @@ async function sendCallbackAlert(chatbotData) {
   const alertText = `⚠️ <b>URGENT CALLBACK REQUIRED</b>\n\n` +
     `Call #${chatbotData.call_number}\n` +
     `Phone: ${chatbotData.phone}\n` +
-    `${process.env.CLIENT_ID_LABEL || 'OSMP'}: ${chatbotData.osmp_id}\n` +
+    `${process.env.CLIENT_ID_LABEL || 'Client ID'}: ${chatbotData.client_number}\n` +
     `Reason: ${chatbotData.callback_reason || 'Client requested operator'}`;
   
   try {
